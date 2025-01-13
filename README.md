@@ -40,8 +40,16 @@ Description: ...
 Status: Incomplete  
 Description: ...  
 
+# Notes:
+- Migrate to Expo Dev New Architecture (SDK 52 or later)
 
 # Resources:
 ### cta4j:
 - Repository: https://github.com/lbkulinski/CTA4j 
 - Website: https://cta4j.app
+
+### CTA API Wrapping
+- YouTube: https://www.youtube.com/watch?v=yE6X4wWwyHM
+
+### React Native Vector Icons
+- Github: https://github.com/oblador/react-native-vector-icons

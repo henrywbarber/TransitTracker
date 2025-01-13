@@ -1,14 +1,13 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { useState, useEffect } from 'react';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import BottomTabs from "./navigation/BottomTabs";
 
-import TransitTabs from './navigation/TransitTabs';
-
-export default function TransitTracker(props) {
+function TransitTracker() {
     return (
-        <>
-            <NavigationContainer>
-                <TransitTabs />
-            </NavigationContainer>
-        </>
+        <NavigationContainer>
+            <BottomTabs />
+        </NavigationContainer>
     );
 }
+
+export default TransitTracker;
