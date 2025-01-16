@@ -10,6 +10,8 @@ import {
     Modal,
     Switch,
     Button,
+    ActivityIndicator,
+    SectionList,
 } from "react-native";
 import axios from "axios";
 
@@ -20,6 +22,7 @@ function Trains() {
     const [dropdownStates, setDropdownStates] = useState({});
     const [suggestions, setSuggestions] = useState([]);
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [filters, setFilters] = useState({
         //Add filters here as we need
         red: true,
@@ -124,6 +127,8 @@ function Trains() {
                 
             } catch (error) {
                 console.error("Error fetching train station data:", error);
+            } finally{
+                setIsLoading(false);
             }
         };
 
@@ -221,15 +226,24 @@ function Trains() {
     };
     return (
         <View style={styles.container}>
+            {isLoading ? (
+                <View style={styles.loadingContainer}>
+                <ActivityIndicator/>
+                <Text style={styles.loadingText}>Loading Stations...</Text>
+                </View>
+            ) : (
+            <>
+            <TouchableOpacity style={styles.filterButton} onPress={toggleFilterModal}>
+                <Text style={styles.filterButtonText}>Filter</Text>
+            </TouchableOpacity>
+            
             <TextInput
                 style={styles.searchBar}
                 placeholder="Search by Station Name"
                 value={search}
                 onChangeText={handleSearch}
             />
-            <TouchableOpacity style={styles.filterButton} onPress={toggleFilterModal}>
-                <Text style={styles.filterButtonText}>Filter</Text>
-            </TouchableOpacity>
+            
             {/* Filter Modal */}
             <Modal
                 animationType="slide"
@@ -304,24 +318,31 @@ function Trains() {
                     ))}
                 </ScrollView>
             )}
-            <ScrollView>
-                {Object.entries(filteredStations).map(([line, stops]) => (
-                    <View key={line} style={styles.lineSection}>
-                        <TouchableOpacity onPress={() => toggleDropdown(line)}>
-                            <Text style={[styles.lineTitle, { color: line.toLowerCase() }]}>
-                                {line} Line ({stops.length} stops)
-                            </Text>
-                        </TouchableOpacity>
-                        {dropdownStates[line] &&
-                            stops.map((stop) => (
-                                <View key={`${line}-${stop.stop_id}`} style={styles.stopCard}>
-                                    <Text style={styles.stopName}>{stop.station_name}</Text>
-                                    <Text style={styles.stopId}>Stop ID: {stop.stop_id}</Text>
-                                </View>
-                            ))}
+            <SectionList
+                sections={Object.entries(filteredStations).map(([line, stops]) => ({
+                    title: line,
+                    data: dropdownStates[line] ? stops : [], 
+                    stops: stops.length 
+                }))}
+                renderItem={({ item, section }) => (
+                    <View style={styles.stopCard}>
+                        <Text style={styles.stopName}>{item.station_name}</Text>
+                        <Text style={styles.stopId}>Stop ID: {item.stop_id}</Text>
                     </View>
-                ))}
-            </ScrollView>
+                )}
+                renderSectionHeader={({ section }) => (
+                    <TouchableOpacity 
+                        onPress={() => toggleDropdown(section.title)}
+                        style={styles.sectionHeader}
+                    >
+                        <Text style={[styles.lineTitle, { color: section.title.toLowerCase() }]}>
+                            {section.title} Line ({section.stops} stops)
+                        </Text>
+                    </TouchableOpacity>
+                )}
+                stickySectionHeadersEnabled={true}
+                keyExtractor={(item, index) => `${item.stop_id}-${index}`}
+            />
             
             {isFiltered && (
                 <TouchableOpacity 
@@ -330,6 +351,8 @@ function Trains() {
                 >
                     <Text style={styles.clearFiltersText}>Clear Filters</Text>
                 </TouchableOpacity>
+            )}
+            </>
             )}
         </View>
     );
@@ -382,6 +405,7 @@ const styles = StyleSheet.create({
         padding: 8,
         backgroundColor: "#f9f9f9",
         borderRadius: 6,
+        marginHorizontal: 8,
     },
     stopName: {
         fontSize: 16,
@@ -419,10 +443,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         paddingVertical: 10,
         borderRadius: 8,
+        marginBottom: 16,
     },
     filterButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+        color: '#fff',
+        fontWeight: 'bold',
     },
     modalContainer: {
         flex: 1,
@@ -440,6 +465,26 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 10,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#666',
+    },
+    sectionHeader: {
+        backgroundColor: '#fff',
+        padding: 8,
+        borderRadius: 8,
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
+        elevation: 3,
     },
 });
 
