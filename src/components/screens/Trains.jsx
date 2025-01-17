@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     ScrollView,
     Modal,
-    Switch,
     ActivityIndicator,
     SectionList,
     SafeAreaView,
@@ -16,73 +15,24 @@ import {
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
 
-const LINE_ORDER = ["Red", "Blue", "Brown", "Green", "Orange", "Pink", "Purple", "Yellow"];
-
-// Colors for styling, can easily change
-const lineColors = {
-    Red: '#c60c30',
-    Blue: '#00a1de',
-    Brown: '#62361b',
-    Green: '#009b3a',
-    Orange: '#f9461c',
-    Pink: '#e27ea6',
-    Purple: '#522398',
-    Yellow: '#f9e300',
-};
+const lines = [
+    {label: 'Red', codes: ['red'], color: '#c60c30', stations: [], isFiltered: false}, 
+    {label: 'Blue', codes: ['blue'], color: '#00a1de', stations: [], isFiltered: false}, 
+    {label: 'Brown', codes: ['brn'], color: '#62361b', stations: [], isFiltered: false}, 
+    {label: 'Green', codes: ['g'], color: '#009b3a', stations: [], isFiltered: false}, 
+    {label: 'Orange', codes: ['o'], color: '#f9461c', stations: [], isFiltered: false}, 
+    {label: 'Pink', codes: ['pnk'], color: '#e27ea6', stations: [], isFiltered: false}, 
+    {label: 'Purple', codes: ['p', 'pexp'], color: '#522398', stations: [], isFiltered: false}, 
+    {label: 'Yellow', codes: ['y'], color: '#f9e300', stations: [], isFiltered: false}
+];
 
 function Trains() {
-    const [stations, setStations] = useState({});
-    const [filteredStations, setFilteredStations] = useState({});
     const [search, setSearch] = useState("");
-    const [dropdownStates, setDropdownStates] = useState({});
-    const [suggestions, setSuggestions] = useState([]);
+    const [filteredStations, setFilteredStations] = useState({});
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [filters, setFilters] = useState({
-        red: true,
-        blue: true,
-        g: true,
-        brn: true,
-        p: true,
-        pexp: true,
-        pnk: true,
-        y: true,
-        o: true,
-    });
-    const [isFiltered, setIsFiltered] = useState(false);
-
-    const addUniqueStation = (lineArray, station, uniqueNames) => {
-        // Check if station name already exists in this line's unique names set
-        if (!uniqueNames.has(station.station_name)) {
-            lineArray.push(station);
-            uniqueNames.add(station.station_name);
-        }
-    };
-
-    const groupStationsByLine = (stations) => {
-        const lineMap = {
-            red: 'Red',
-            blue: 'Blue',
-            g: 'Green',
-            brn: 'Brown',
-            p: 'Purple',
-            pexp: 'Purple',
-            pnk: 'Pink',
-            y: 'Yellow',
-            o: 'Orange'
-        };
-
-        return stations.reduce((acc, station) => {
-            for (const [key, line] of Object.entries(lineMap)) {
-                if (station[key]) {
-                    acc[line] = acc[line] || { stations: [], uniqueNames: new Set() };
-                    addUniqueStation(acc[line].stations, station, acc[line].uniqueNames);
-                }
-            }
-            return acc;
-        }, {});
-    };
 
     useEffect(() => {
         const fetchStations = async () => {
@@ -90,23 +40,39 @@ function Trains() {
                 const response = await axios.get(
                     "https://data.cityofchicago.org/resource/8pix-ypme.json"
                 );
+                console.log(response.data);
 
-                const groupedStations = groupStationsByLine(response.data);
-                const orderedStations = LINE_ORDER.reduce((acc, line) => {
-                    if (groupedStations[line]) {
-                        acc[line] = groupedStations[line].stations;
-                    }
-                    return acc;
-                }, {});
+                const stopData = response.data;
 
-                setStations(orderedStations);
-                setFilteredStations(orderedStations);
-                setDropdownStates(
-                    Object.keys(orderedStations).reduce((acc, line) => {
-                        acc[line] = false;
-                        return acc;
-                    }, {})
-                );
+                // Clear stations in lines
+                lines.forEach(line => {
+                    line.stations = [];
+                });
+
+                stopData.forEach(stop => {
+                    lines.forEach(line => {
+                        line.codes.forEach(code => {
+                            if (stop[code] === true) {
+                                // Check if the station already exists in this line by name
+                                const existingStation = line.stations.some(
+                                    (station) => station.station_name === stop.station_name
+                                );
+                                if (!existingStation) {
+                                    // Add the station if it doesn't exist
+                                    line.stations.push({
+                                        stop_id: stop.stop_id,
+                                        direction_id: stop.direction_id,
+                                        stop_name: stop.stop_name,
+                                        station_name: stop.station_name,
+                                        station_descriptive_name: stop.station_descriptive_name,
+                                        map_id: stop.map_id,
+                                        ada: stop.ada,
+                                    });
+                                }
+                            }
+                        });
+                    });
+                });
             } catch (error) {
                 console.error("Error fetching train station data:", error);
             } finally {
@@ -119,89 +85,36 @@ function Trains() {
 
     const handleSearch = (text) => {
         setSearch(text);
+    };
 
-        const currentStations = isFiltered ? filteredStations : stations;
+    // Filter stations based on the search term
+    const filterStations = (line) => {
+        return line.stations.filter((stop) =>
+            stop.station_name.toLowerCase().includes(search.toLowerCase())
+        );
+    };
 
-        // Generate suggestions for autofill
-        const allStops = Object.values(currentStations).flat();
-        const matchedSuggestions = allStops
-            .filter((stop) =>
-                stop.station_name.toLowerCase().includes(text.toLowerCase())
-            )
-            .map((stop) => stop.station_name);
-        setSuggestions([...new Set(matchedSuggestions)]);
-
-        // Filter stations by search query
-        const filtered = Object.entries(currentStations).reduce((acc, [line, stops]) => {
-            const filteredStops = stops.filter((stop) =>
-                stop.station_name.toLowerCase().includes(text.toLowerCase())
-            );
-            if (filteredStops.length > 0) acc[line] = filteredStops;
-            return acc;
-        }, {});
-
-        setFilteredStations(filtered);
+    const extractConnections = (stopName) => {
+        const regex = /\(([^)]+)\)/g;
+        const matches = [...stopName.matchAll(regex)];
+        return matches.map((match) => match[1]).join(', ');
     };
 
     const handleSuggestionClick = (suggestion) => {
         setSearch(suggestion);
         handleSearch(suggestion);
-        setSuggestions([]);
     };
 
     const toggleDropdown = (line) => {
-        setDropdownStates((prevState) => ({
+        setFilteredStations((prevState) => ({
             ...prevState,
-            [line]: !prevState[line],
+            [line]: prevState[line] ? [] : lines.find((l) => l.label === line).stations,
         }));
     };
 
     const toggleFilterModal = () => {
         setIsFilterModalVisible(!isFilterModalVisible);
     };
-
-    const clearFilters = () => {
-        setFilters({
-            red: true,
-            blue: true,
-            g: true,
-            brn: true,
-            pexp: true,
-            p: true,
-            pnk: true,
-            y: true,
-            o: true,
-        });
-        setFilteredStations(stations);
-        setIsFiltered(false);
-    };
-
-    const applyFilters = () => {
-        const allStations = Object.values(stations).flat();
-        const filteredStations = allStations.filter(station =>
-            Object.entries(filters)
-                .filter(([_, isEnabled]) => isEnabled)
-                .some(([key]) => station[key])
-        );
-
-        const regrouped = groupStationsByLine(filteredStations);
-
-        setFilteredStations(regrouped);
-        toggleFilterModal();
-        setIsFiltered(true);
-    };
-
-    const renderFilterItem = ({ item }) => (
-        <View style={styles.filterItem}>
-            <Text style={styles.filterItemText}>{item.label}</Text>
-            <Switch
-                value={filters[item.key]}
-                onValueChange={(value) => setFilters({ ...filters, [item.key]: value })}
-                trackColor={{ false: '#767577', true: lineColors[item.label] }}
-                thumbColor={filters[item.key] ? '#f4f3f4' : '#f4f3f4'}
-            />
-        </View>
-    );
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -227,59 +140,61 @@ function Trains() {
                                 placeholder="Search by Station Name"
                                 value={search}
                                 onChangeText={handleSearch}
+                                clearButtonMode="always"
+                                autoComplete=""
                             />
                         </View>
-                        {suggestions.length > 0 && (
+                        {search.length > 0 && (
                             <ScrollView style={styles.suggestionsContainer}>
-                                {suggestions.map((suggestion, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        onPress={() => handleSuggestionClick(suggestion)}
-                                        style={styles.suggestionItem}
-                                    >
-                                        <Text style={styles.suggestionText}>{suggestion}</Text>
+                                {Object.keys(filteredStations).map((line, index) => (
+                                    <TouchableOpacity key={index} onPress={() => toggleDropdown(line)}>
+                                        <Text>{line}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
                         )}
+
                         <SectionList
-                            sections={Object.entries(filteredStations).map(([line, stops]) => ({
-                                title: line,
-                                data: dropdownStates[line] ? stops : [],
-                                stops: stops.length,
+                            sections={lines.map((line) => ({
+                                title: line.label,
+                                data: search.length > 0 ? filterStations(line) : line.stations,
+                                color: line.color,
+                                stops: filterStations(line).length,
                             }))}
                             renderItem={({ item, section }) => (
                                 <View style={styles.stopCard}>
-                                    <View style={[styles.stopColorIndicator, { backgroundColor: lineColors[section.title] }]} />
+                                    <View style={[styles.stopColorIndicator, { backgroundColor: section.color }]} />
                                     <View style={styles.stopInfo}>
-                                        <Text style={styles.stopName}>{item.station_name}</Text>
-                                        <Text style={styles.stopId}>Stop ID: {item.stop_id}</Text>
+                                        <Text style={styles.stopName}>
+                                            {item.station_name} 
+                                            {/* TODO: fix margin within styles.adaIcon, will not work for some reason */}
+                                            {item.ada && (
+                                                <FontAwesome name="wheelchair" size={14} color="black" style={[styles.adaIcon]}/>
+                                            )}
+                                        </Text>
+                                        <Text style={styles.stopId}>
+                                            Connections: {extractConnections(item.station_descriptive_name)}
+                                        </Text>
                                     </View>
                                 </View>
                             )}
                             renderSectionHeader={({ section }) => (
                                 <TouchableOpacity
                                     onPress={() => toggleDropdown(section.title)}
-                                    style={[styles.sectionHeader, { borderLeftColor: lineColors[section.title] }]}
+                                    style={[styles.sectionHeader, { borderLeftColor: section.color }]}
                                 >
                                     <Text style={styles.lineTitle}>
                                         {section.title} Line ({section.stops} stops)
                                     </Text>
                                     <Ionicons
-                                        name={dropdownStates[section.title] ? 'chevron-up' : 'chevron-down'}
+                                        name={filteredStations[section.title] ? 'chevron-up' : 'chevron-down'}
                                         size={24}
                                         color="#666"
                                     />
                                 </TouchableOpacity>
                             )}
-                            stickySectionHeadersEnabled={true}
-                            keyExtractor={(item, index) => `${item.stop_id}-${index}`}
+                            keyExtractor={(item) => `${item.stop_id}`}
                         />
-                        {isFiltered && (
-                            <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
-                                <Text style={styles.clearFiltersText}>Clear Filters</Text>
-                            </TouchableOpacity>
-                        )}
                     </>
                 )}
             </View>
@@ -291,28 +206,19 @@ function Trains() {
             >
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Filter Stations</Text>
+                        <Text style={styles.modalTitle}>Filter Train Lines</Text>
                         <FlatList
-                            data={[
-                                { key: 'red', label: 'Red' },
-                                { key: 'blue', label: 'Blue' },
-                                { key: 'g', label: 'Green' },
-                                { key: 'brn', label: 'Brown' },
-                                { key: 'p', label: 'Purple' },
-                                { key: 'pexp', label: 'Purple (Express)' },
-                                { key: 'pnk', label: 'Pink' },
-                                { key: 'y', label: 'Yellow' },
-                                { key: 'o', label: 'Orange' },
-                            ]}
-                            renderItem={renderFilterItem}
+                            data={lines.map((line) => ({ key: line.label, label: line.label }))}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity onPress={() => toggleDropdown(item.label)}>
+                                    <Text style={styles.filterItem}>{item.label}</Text>
+                                </TouchableOpacity>
+                            )}
                             keyExtractor={(item) => item.key}
                         />
                         <View style={styles.modalButtons}>
-                            <TouchableOpacity style={styles.modalButton} onPress={applyFilters}>
-                                <Text style={styles.modalButtonText}>Apply Filters</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={toggleFilterModal}>
-                                <Text style={styles.modalButtonText}>Cancel</Text>
+                            <TouchableOpacity style={styles.modalButton} onPress={toggleFilterModal}>
+                                <Text style={styles.modalButtonText}>Close</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -425,9 +331,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     stopName: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
         color: '#333',
+    },
+    adaIcon: {
+        marginLeft: 12,
     },
     stopId: {
         fontSize: 14,
