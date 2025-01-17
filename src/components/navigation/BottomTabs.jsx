@@ -25,6 +25,7 @@ function BottomTabs() {
                 ),
                 tabBarActiveTintColor: "tomato",
                 tabBarInactiveTintColor: "gray",
+                headerShown: false, // Hide the header for each screen
             })}
         >
             <Tab.Screen name="Home" component={Home} />
