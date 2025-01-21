@@ -18,14 +18,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { FontAwesome } from '@expo/vector-icons';
 
 const lines = [
-    {label: 'Red', codes: ['red'], color: '#c60c30', stations: [], isFiltered: false}, 
-    {label: 'Blue', codes: ['blue'], color: '#00a1de', stations: [], isFiltered: false}, 
-    {label: 'Brown', codes: ['brn'], color: '#62361b', stations: [], isFiltered: false}, 
-    {label: 'Green', codes: ['g'], color: '#009b3a', stations: [], isFiltered: false}, 
-    {label: 'Orange', codes: ['o'], color: '#f9461c', stations: [], isFiltered: false}, 
-    {label: 'Pink', codes: ['pnk'], color: '#e27ea6', stations: [], isFiltered: false}, 
-    {label: 'Purple', codes: ['p', 'pexp'], color: '#522398', stations: [], isFiltered: false}, 
-    {label: 'Yellow', codes: ['y'], color: '#f9e300', stations: [], isFiltered: false}
+    {label: 'Red', codes: ['red'], color: '#c60c30', stations: [], isFiltered: false, dropdownOn: false}, 
+    {label: 'Blue', codes: ['blue'], color: '#00a1de', stations: [], isFiltered: false, dropdownOn: false}, 
+    {label: 'Brown', codes: ['brn'], color: '#62361b', stations: [], isFiltered: false, dropdownOn: false}, 
+    {label: 'Green', codes: ['g'], color: '#009b3a', stations: [], isFiltered: false, dropdownOn: false}, 
+    {label: 'Orange', codes: ['o'], color: '#f9461c', stations: [], isFiltered: false, dropdownOn: false}, 
+    {label: 'Pink', codes: ['pnk'], color: '#e27ea6', stations: [], isFiltered: false, dropdownOn: false}, 
+    {label: 'Purple', codes: ['p', 'pexp'], color: '#522398', stations: [], isFiltered: false, dropdownOn: false}, 
+    {label: 'Yellow', codes: ['y'], color: '#f9e300', stations: [], isFiltered: false, dropdownOn: false}
 ];
 
 function Trains() {
@@ -33,6 +33,16 @@ function Trains() {
     const [filteredStations, setFilteredStations] = useState({});
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [lines, setLines] = useState([
+        {label: 'Red', codes: ['red'], color: '#c60c30', stations: [], isFiltered: false, dropdownOn: false}, 
+        {label: 'Blue', codes: ['blue'], color: '#00a1de', stations: [], isFiltered: false, dropdownOn: false}, 
+        {label: 'Brown', codes: ['brn'], color: '#62361b', stations: [], isFiltered: false, dropdownOn: false}, 
+        {label: 'Green', codes: ['g'], color: '#009b3a', stations: [], isFiltered: false, dropdownOn: false}, 
+        {label: 'Orange', codes: ['o'], color: '#f9461c', stations: [], isFiltered: false, dropdownOn: false}, 
+        {label: 'Pink', codes: ['pnk'], color: '#e27ea6', stations: [], isFiltered: false, dropdownOn: false}, 
+        {label: 'Purple', codes: ['p', 'pexp'], color: '#522398', stations: [], isFiltered: false, dropdownOn: false}, 
+        {label: 'Yellow', codes: ['y'], color: '#f9e300', stations: [], isFiltered: false, dropdownOn: false}
+    ]);
 
     useEffect(() => {
         const fetchStations = async () => {
@@ -105,11 +115,15 @@ function Trains() {
         handleSearch(suggestion);
     };
 
-    const toggleDropdown = (line) => {
-        setFilteredStations((prevState) => ({
-            ...prevState,
-            [line]: prevState[line] ? [] : lines.find((l) => l.label === line).stations,
-        }));
+    const toggleDropdown = (lineLabel) => {
+        console.log(lineLabel)
+        setLines((prevLines) =>
+            prevLines.map((line) =>
+                line.label === lineLabel
+                    ? { ...line, dropdownOn: !line.dropdownOn } // Toggle dropdownOn for the matching line
+                    : line // Keep other lines unchanged
+            )
+        );
     };
 
     const toggleFilterModal = () => {
@@ -157,7 +171,7 @@ function Trains() {
                         <SectionList
                             sections={lines.map((line) => ({
                                 title: line.label,
-                                data: search.length > 0 ? filterStations(line) : line.stations,
+                                data: lines.dropdownOn ? lines.stations : [],
                                 color: line.color,
                                 stops: filterStations(line).length,
                             }))}
@@ -180,7 +194,7 @@ function Trains() {
                             )}
                             renderSectionHeader={({ section }) => (
                                 <TouchableOpacity
-                                    onPress={() => toggleDropdown(section.title)}
+                                    onPress={() => toggleDropdown(section.label)}
                                     style={[styles.sectionHeader, { borderLeftColor: section.color }]}
                                 >
                                     <Text style={styles.lineTitle}>
