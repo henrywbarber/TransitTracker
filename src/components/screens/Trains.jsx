@@ -50,39 +50,41 @@ function Trains() {
                 const response = await axios.get(
                     "https://data.cityofchicago.org/resource/8pix-ypme.json"
                 );
-                console.log(response.data);
 
                 const stopData = response.data;
 
                 // Clear stations in lines
-                lines.forEach(line => {
-                    line.stations = [];
-                });
+                
+                const updatedLines = lines.map(line => {
 
-                stopData.forEach(stop => {
-                    lines.forEach(line => {
+                    const updatedLine = { ...line, stations: [] };
+
+                    stopData.forEach(stop => {
                         line.codes.forEach(code => {
                             if (stop[code] === true) {
-                                // Check if the station already exists in this line by name
-                                const existingStation = line.stations.some(
-                                    (station) => station.station_name === stop.station_name
-                                );
-                                if (!existingStation) {
-                                    // Add the station if it doesn't exist
-                                    line.stations.push({
-                                        stop_id: stop.stop_id,
-                                        direction_id: stop.direction_id,
-                                        stop_name: stop.stop_name,
-                                        station_name: stop.station_name,
-                                        station_descriptive_name: stop.station_descriptive_name,
-                                        map_id: stop.map_id,
-                                        ada: stop.ada,
-                                    });
-                                }
+                                    // Check if the station already exists in this line by name
+                                    const existingStation = updatedLine.stations.some(
+                                        (station) => station.station_name === stop.station_name
+                                    );
+                                    
+                                    if (!existingStation) {
+                                        updatedLine.stations.push({
+                                            stop_id: stop.stop_id,
+                                            direction_id: stop.direction_id,
+                                            stop_name: stop.stop_name,
+                                            station_name: stop.station_name,
+                                            station_descriptive_name: stop.station_descriptive_name,
+                                            map_id: stop.map_id,
+                                            ada: stop.ada,
+                                        });
+                                    }
                             }
-                        });
+                         });
                     });
+                    return updatedLine;
                 });
+                //console.log(updatedLines)
+                setLines(updatedLines);
             } catch (error) {
                 console.error("Error fetching train station data:", error);
             } finally {
@@ -99,6 +101,7 @@ function Trains() {
 
     // Filter stations based on the search term
     const filterStations = (line) => {
+        console.log("hi")
         return line.stations.filter((stop) =>
             stop.station_name.toLowerCase().includes(search.toLowerCase())
         );
@@ -116,7 +119,6 @@ function Trains() {
     };
 
     const toggleDropdown = (lineLabel) => {
-        console.log(lineLabel)
         setLines((prevLines) =>
             prevLines.map((line) =>
                 line.label === lineLabel
@@ -171,9 +173,9 @@ function Trains() {
                         <SectionList
                             sections={lines.map((line) => ({
                                 title: line.label,
-                                data: lines.dropdownOn ? lines.stations : [],
+                                data: line.dropdownOn ? lines.stations : [],
                                 color: line.color,
-                                stops: filterStations(line).length,
+                                stops: line.stations.length,
                             }))}
                             renderItem={({ item, section }) => (
                                 <View style={styles.stopCard}>
@@ -194,14 +196,14 @@ function Trains() {
                             )}
                             renderSectionHeader={({ section }) => (
                                 <TouchableOpacity
-                                    onPress={() => toggleDropdown(section.label)}
+                                    onPress={() => toggleDropdown(section.title)}
                                     style={[styles.sectionHeader, { borderLeftColor: section.color }]}
                                 >
                                     <Text style={styles.lineTitle}>
                                         {section.title} Line ({section.stops} stops)
                                     </Text>
                                     <Ionicons
-                                        name={filteredStations[section.title] ? 'chevron-up' : 'chevron-down'}
+                                        name={section.data.length > 0 ? 'chevron-up' : 'chevron-down'}
                                         size={24}
                                         color="#666"
                                     />
