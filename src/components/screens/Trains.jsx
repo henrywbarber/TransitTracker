@@ -173,7 +173,7 @@ function Trains() {
                         <SectionList
                             sections={lines.map((line) => ({
                                 title: line.label,
-                                data: line.dropdownOn ? lines.stations : [],
+                                data: line.dropdownOn ? filterStations(line) : [], // Use filterStations to filter data
                                 color: line.color,
                                 stops: line.stations.length,
                             }))}
@@ -183,7 +183,6 @@ function Trains() {
                                     <View style={styles.stopInfo}>
                                         <Text style={styles.stopName}>
                                             {item.station_name} 
-                                            {/* TODO: fix margin within styles.adaIcon, will not work for some reason */}
                                             {item.ada && (
                                                 <FontAwesome name="wheelchair" size={14} color="black" style={[styles.adaIcon]}/>
                                             )}
