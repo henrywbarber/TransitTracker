@@ -108,7 +108,6 @@ function Trains() {
 
     // Filter stations based on the search term
     const filterStations = (line) => {
-        console.log("hi")
         return line.stations.filter((stop) =>
             stop.station_name.toLowerCase().includes(search.toLowerCase())
         );
@@ -192,7 +191,7 @@ function Trains() {
                                 autoComplete=""
                             />
                         </View>
-                        {search.length > 0 && (
+                       {/*{search.length > 0 && (
                             <ScrollView style={styles.suggestionsContainer}>
                                 {Object.keys(filteredStations).map((line, index) => (
                                     <TouchableOpacity key={index} onPress={() => toggleDropdown(line)}>
@@ -200,20 +199,37 @@ function Trains() {
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
-                        )}
+                        )}*/}
 
                         <SectionList
-                            sections={lines
-                                .filter(line => !line.isFiltered) // Only show unfiltered lines
-                                .map((line) => ({
-                                    title: line.label,
-                                    data: line.dropdownOn ? filterStations(line) : [],
-                                    color: line.color,
-                                    stops: line.stations.length,
-                                }))}
+                            sections={search.length > 0 
+                                ? [{ // When searching, show all matching stations in a single section
+                                    title: "Search Results",
+                                    data: lines
+                                        .filter(line => !line.isFiltered)
+                                        .flatMap(line => filterStations(line)),
+                                    color: "#333" // Default color for search results
+                                }]
+                                : lines // When not searching, show normal line-based sections
+                                    .filter(line => !line.isFiltered)
+                                    .map((line) => ({
+                                        title: line.label,
+                                        data: line.dropdownOn ? filterStations(line) : [],
+                                        color: line.color,
+                                        stops: line.stations.length,
+                                    }))}
                             renderItem={({ item, section }) => (
                                 <View style={styles.stopCard}>
-                                    <View style={[styles.stopColorIndicator, { backgroundColor: section.color }]} />
+                                    <View style={[styles.stopColorIndicator, { backgroundColor: 
+                                        // Show the line's color for each station by finding its parent line
+                                        search.length > 0 
+                                            ? lines.find(line => 
+                                                line.stations.some(station => 
+                                                    station.stop_id === item.stop_id
+                                                )
+                                            )?.color || "#333"
+                                            : section.color 
+                                    }]} />
                                     <View style={styles.stopInfo}>
                                         <Text style={styles.stopName}>
                                             {item.station_name} 
@@ -228,6 +244,7 @@ function Trains() {
                                 </View>
                             )}
                             renderSectionHeader={({ section }) => (
+                                search.length > 0 ? null : // Hide section headers during search
                                 <TouchableOpacity
                                     onPress={() => toggleDropdown(section.title)}
                                     style={[styles.sectionHeader, { borderLeftColor: section.color }]}
