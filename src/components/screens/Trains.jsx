@@ -12,6 +12,7 @@ import {
     SafeAreaView,
     StatusBar,
     FlatList,
+    Switch,
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,12 @@ function Trains() {
         {label: 'Purple', codes: ['p', 'pexp'], color: '#522398', stations: [], isFiltered: false, dropdownOn: false}, 
         {label: 'Yellow', codes: ['y'], color: '#f9e300', stations: [], isFiltered: false, dropdownOn: false}
     ]);
+    const [filters, setFilters] = useState(
+        lines.reduce((acc, line) => ({
+            ...acc,
+            [line.label.toLowerCase()]: true
+        }), {})
+    );
 
     useEffect(() => {
         const fetchStations = async () => {
@@ -132,6 +139,31 @@ function Trains() {
         setIsFilterModalVisible(!isFilterModalVisible);
     };
 
+    const applyFilters = () => {
+        setLines(prevLines => 
+            prevLines.map(line => ({
+                ...line,
+                isFiltered: !filters[line.label.toLowerCase()]
+            }))
+        );
+        toggleFilterModal();
+    };
+
+    const renderFilterItem = ({ item }) => (
+        <View style={styles.filterItem}>
+            <Text style={styles.filterItemText}>{item.label}</Text>
+            <Switch
+                value={filters[item.label.toLowerCase()]}
+                onValueChange={(value) => setFilters(prev => ({
+                    ...prev,
+                    [item.label.toLowerCase()]: value
+                }))}
+                trackColor={{ false: '#FFFFFF', true: '#4169e1' }}
+                thumbColor={filters[item.label.toLowerCase()] ? '#FFFFFF' : '#4169e1'}
+            />
+        </View>
+    );
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" />
@@ -171,12 +203,14 @@ function Trains() {
                         )}
 
                         <SectionList
-                            sections={lines.map((line) => ({
-                                title: line.label,
-                                data: line.dropdownOn ? filterStations(line) : [], // Use filterStations to filter data
-                                color: line.color,
-                                stops: line.stations.length,
-                            }))}
+                            sections={lines
+                                .filter(line => !line.isFiltered) // Only show unfiltered lines
+                                .map((line) => ({
+                                    title: line.label,
+                                    data: line.dropdownOn ? filterStations(line) : [],
+                                    color: line.color,
+                                    stops: line.stations.length,
+                                }))}
                             renderItem={({ item, section }) => (
                                 <View style={styles.stopCard}>
                                     <View style={[styles.stopColorIndicator, { backgroundColor: section.color }]} />
@@ -214,29 +248,31 @@ function Trains() {
                 )}
             </View>
             <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isFilterModalVisible}
-                onRequestClose={toggleFilterModal}
+            animationType="slide"
+            transparent={true}
+            visible={isFilterModalVisible}
+            onRequestClose={toggleFilterModal}
             >
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Filter Train Lines</Text>
-                        <FlatList
-                            data={lines.map((line) => ({ key: line.label, label: line.label }))}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity onPress={() => toggleDropdown(item.label)}>
-                                    <Text style={styles.filterItem}>{item.label}</Text>
-                                </TouchableOpacity>
-                            )}
-                            keyExtractor={(item) => item.key}
-                        />
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity style={styles.modalButton} onPress={toggleFilterModal}>
-                                <Text style={styles.modalButtonText}>Close</Text>
-                            </TouchableOpacity>
-                        </View>
+                <View style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>Filter Stations</Text>
+                    <FlatList
+                    data={lines.map(line => ({
+                        key: line.codes[0],
+                        label: line.label
+                    }))}
+                    renderItem={renderFilterItem}
+                    keyExtractor={(item) => item.key}
+                    />
+                    <View style={styles.modalButtons}>
+                    <TouchableOpacity style={styles.modalButton} onPress={applyFilters}>
+                        <Text style={styles.modalButtonText}>Apply Filters</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={toggleFilterModal}>
+                        <Text style={styles.modalButtonText}>Cancel</Text>
+                    </TouchableOpacity>
                     </View>
+                </View>
                 </View>
             </Modal>
         </SafeAreaView>
