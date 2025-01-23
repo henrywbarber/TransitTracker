@@ -18,17 +18,6 @@ import axios from "axios";
 import { Ionicons } from '@expo/vector-icons';
 import { FontAwesome } from '@expo/vector-icons';
 
-const lines = [
-    {label: 'Red', codes: ['red'], color: '#c60c30', stations: [], isFiltered: false, dropdownOn: false}, 
-    {label: 'Blue', codes: ['blue'], color: '#00a1de', stations: [], isFiltered: false, dropdownOn: false}, 
-    {label: 'Brown', codes: ['brn'], color: '#62361b', stations: [], isFiltered: false, dropdownOn: false}, 
-    {label: 'Green', codes: ['g'], color: '#009b3a', stations: [], isFiltered: false, dropdownOn: false}, 
-    {label: 'Orange', codes: ['o'], color: '#f9461c', stations: [], isFiltered: false, dropdownOn: false}, 
-    {label: 'Pink', codes: ['pnk'], color: '#e27ea6', stations: [], isFiltered: false, dropdownOn: false}, 
-    {label: 'Purple', codes: ['p', 'pexp'], color: '#522398', stations: [], isFiltered: false, dropdownOn: false}, 
-    {label: 'Yellow', codes: ['y'], color: '#f9e300', stations: [], isFiltered: false, dropdownOn: false}
-];
-
 function Trains() {
     const [search, setSearch] = useState("");
     const [filteredStations, setFilteredStations] = useState({});
@@ -59,38 +48,28 @@ function Trains() {
                 );
 
                 const stopData = response.data;
-
-                // Clear stations in lines
-                
                 const updatedLines = lines.map(line => {
-
                     const updatedLine = { ...line, stations: [] };
-
                     stopData.forEach(stop => {
                         line.codes.forEach(code => {
                             if (stop[code] === true) {
-                                    // Check if the station already exists in this line by name
-                                    const existingStation = updatedLine.stations.some(
-                                        (station) => station.station_name === stop.station_name
-                                    );
-                                    
-                                    if (!existingStation) {
-                                        updatedLine.stations.push({
-                                            stop_id: stop.stop_id,
-                                            direction_id: stop.direction_id,
-                                            stop_name: stop.stop_name,
-                                            station_name: stop.station_name,
-                                            station_descriptive_name: stop.station_descriptive_name,
-                                            map_id: stop.map_id,
-                                            ada: stop.ada,
-                                        });
-                                    }
+                                const existingStation = updatedLine.stations.some((station) => station.station_name === stop.station_name);
+                                if (!existingStation) {
+                                    updatedLine.stations.push({
+                                        stop_id: stop.stop_id,
+                                        direction_id: stop.direction_id,
+                                        stop_name: stop.stop_name,
+                                        station_name: stop.station_name,
+                                        station_descriptive_name: stop.station_descriptive_name,
+                                        map_id: stop.map_id,
+                                        ada: stop.ada,
+                                    });
+                                }
                             }
                          });
                     });
                     return updatedLine;
                 });
-                //console.log(updatedLines)
                 setLines(updatedLines);
             } catch (error) {
                 console.error("Error fetching train station data:", error);
@@ -101,6 +80,37 @@ function Trains() {
 
         fetchStations();
     }, []);
+
+    const [predictions, setPredictions] = useState({});
+    const API_KEY = "ee9224d87b9349c9a42e0a3977f425e9";
+
+    const fetchPredictions = async (stopId) => {
+        try {
+            const response = await axios.get(
+                `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${API_KEY}&stpid=${stopId}&outputType=JSON`
+            );
+            const arrivals = response.data.ctatt.eta || [];
+            arrivals.sort((a, b) => new Date(a.arrT) - new Date(b.arrT)); // Sort by arrival time
+            setPredictions((prev) => ({
+                ...prev,
+                [stopId]: arrivals,
+            }));
+        } catch (error) {
+            console.error("Error fetching predictions:", error);
+        }
+    };
+
+    const [expandedStopId, setExpandedStopId] = useState(null);
+
+    const toggleExpand = (stopId) => {
+        if (expandedStopId === stopId) {
+            setExpandedStopId(null);
+        } else {
+            setExpandedStopId(stopId);
+            fetchPredictions(stopId); // Fetch predictions for the expanded stop
+        }
+    };
+
 
     const handleSearch = (text) => {
         setSearch(text);
@@ -117,11 +127,6 @@ function Trains() {
         const regex = /\(([^)]+)\)/g;
         const matches = [...stopName.matchAll(regex)];
         return matches.map((match) => match[1]).join(', ');
-    };
-
-    const handleSuggestionClick = (suggestion) => {
-        setSearch(suggestion);
-        handleSearch(suggestion);
     };
 
     const toggleDropdown = (lineLabel) => {
@@ -191,15 +196,6 @@ function Trains() {
                                 autoComplete=""
                             />
                         </View>
-                       {/*{search.length > 0 && (
-                            <ScrollView style={styles.suggestionsContainer}>
-                                {Object.keys(filteredStations).map((line, index) => (
-                                    <TouchableOpacity key={index} onPress={() => toggleDropdown(line)}>
-                                        <Text>{line}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        )}*/}
 
                         <SectionList
                             sections={search.length > 0 
@@ -219,29 +215,61 @@ function Trains() {
                                         stops: line.stations.length,
                                     }))}
                             renderItem={({ item, section }) => (
-                                <View style={styles.stopCard}>
-                                    <View style={[styles.stopColorIndicator, { backgroundColor: 
-                                        // Show the line's color for each station by finding its parent line
-                                        search.length > 0 
-                                            ? lines.find(line => 
-                                                line.stations.some(station => 
-                                                    station.stop_id === item.stop_id
-                                                )
-                                            )?.color || "#333"
-                                            : section.color 
-                                    }]} />
-                                    <View style={styles.stopInfo}>
-                                        <View style={styles.stationTitleContainer}>
-                                            <Text style={styles.stopName}>{item.station_name}</Text>
-                                            {item.ada && (
-                                                <FontAwesome name="wheelchair" size={14} color="black" style={styles.adaIcon} />
+                                <TouchableOpacity onPress={() => toggleExpand(item.stop_id)}>
+                                    <View style={styles.stopCard}>
+                                        <View style={[styles.stopColorIndicator, { backgroundColor: 
+                                            // Show the line's color for each station by finding its parent line
+                                            search.length > 0 
+                                                ? lines.find(line => 
+                                                    line.stations.some(station => 
+                                                        station.stop_id === item.stop_id
+                                                    )
+                                                )?.color || "#333"
+                                                : section.color 
+                                        }]} />
+                                        <View style={styles.stopInfo}>
+                                            <View style={styles.stationTitleContainer}>
+                                                <Text style={styles.stopName}>{item.station_name}</Text>
+                                                {item.ada && (
+                                                    <FontAwesome name="wheelchair" size={14} color="black"/>
+                                                )}
+                                            </View>
+                                            {/* <Text style={styles.stopSubText}>Stop ID: {item.stop_id}</Text> */}
+                                            <Text style={styles.stopSubText}>
+                                                Connections: {extractConnections(item.station_descriptive_name)}
+                                            </Text>
+                                            {expandedStopId === item.stop_id && (
+                                                <View style={styles.expandedContent}>
+                                                    <Text style={styles.stopSubText}>Predictions:</Text>
+                                                    {predictions[item.stop_id]?.length > 0 ? (
+                                                        <View>
+                                                            <View style={styles.predictionTableHeader}>
+                                                                <Text style={[styles.predictionText, styles.boldText]}>Train</Text>
+                                                                <Text style={[styles.predictionText, styles.boldText]}>Direction</Text>
+                                                                <Text style={[styles.predictionText, styles.boldText]}>Arrival Time</Text>
+                                                            </View>
+                                                            {predictions[item.stop_id].map((prediction, index) => (
+                                                                <View key={index} style={styles.predictionRow}>
+                                                                    <Text style={styles.predictionText}>{prediction.rn}</Text>
+                                                                    <Text style={styles.predictionText}>{prediction.destNm}</Text>
+                                                                    <Text style={styles.predictionText}>
+                                                                        {new Date(prediction.arrT).toLocaleTimeString([], {
+                                                                            hour: "2-digit",
+                                                                            minute: "2-digit",
+                                                                        })}
+                                                                    </Text>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                    ) : (
+                                                        <Text style={styles.stopSubText}>No predictions available.</Text>
+                                                    )}
+                                                </View>
                                             )}
+
                                         </View>
-                                        <Text style={styles.stopId}>
-                                            Connections: {extractConnections(item.station_descriptive_name)}
-                                        </Text>
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             )}
                             renderSectionHeader={({ section }) => (
                                 search.length > 0 ? null : // Hide section headers during search
@@ -408,14 +436,39 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#333',
     },
-    adaIcon: {
-        marginLeft: 8,
-    },
-    stopId: {
+    stopSubText: {
         fontSize: 14,
         color: '#666',
         marginTop: 4,
     },
+    expandedContent: {
+        padding: 10,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 5,
+        marginTop: 5,
+    },
+    predictionTableHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: "#ccc",
+    },
+    predictionRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+    },
+    predictionText: {
+        fontSize: 14,
+        color: "#333",
+        flex: 1,
+        textAlign: "center",
+    },
+    boldText: {
+        fontWeight: "bold",
+    },
+
     filterButton: {
         backgroundColor: '#007AFF',
         padding: 10,
