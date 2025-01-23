@@ -231,12 +231,12 @@ function Trains() {
                                             : section.color 
                                     }]} />
                                     <View style={styles.stopInfo}>
-                                        <Text style={styles.stopName}>
-                                            {item.station_name} 
+                                        <View style={styles.stationTitleContainer}>
+                                            <Text style={styles.stopName}>{item.station_name}</Text>
                                             {item.ada && (
-                                                <FontAwesome name="wheelchair" size={14} color="black" style={[styles.adaIcon]}/>
+                                                <FontAwesome name="wheelchair" size={14} color="black" style={styles.adaIcon} />
                                             )}
-                                        </Text>
+                                        </View>
                                         <Text style={styles.stopId}>
                                             Connections: {extractConnections(item.station_descriptive_name)}
                                         </Text>
@@ -297,6 +297,11 @@ function Trains() {
 }
 
 const styles = StyleSheet.create({
+    stationTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     safeArea: {
         flex: 1,
         backgroundColor: '#f4f4f4',
@@ -404,7 +409,7 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     adaIcon: {
-        marginLeft: 12,
+        marginLeft: 8,
     },
     stopId: {
         fontSize: 14,
