@@ -82,12 +82,12 @@ function Trains() {
     }, []);
 
     const [predictions, setPredictions] = useState({});
-    const API_KEY = "ee9224d87b9349c9a42e0a3977f425e9";
+    
 
     const fetchPredictions = async (stopId) => {
         try {
             const response = await axios.get(
-                `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${API_KEY}&stpid=${stopId}&outputType=JSON`
+                `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.CTA_API_KEY}&stpid=${stopId}&outputType=JSON`
             );
             const arrivals = response.data.ctatt.eta || [];
             arrivals.sort((a, b) => new Date(a.arrT) - new Date(b.arrT)); // Sort by arrival time
