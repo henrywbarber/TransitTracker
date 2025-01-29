@@ -54,3 +54,9 @@ Description: ...
 
 ### React Native Vector Icons
 - Github: https://github.com/oblador/react-native-vector-icons
+
+### CTA Dev Group Forum
+- https://groups.google.com/g/ctadevs?pli=1
+
+### CTA Branding
+- https://www.transitchicago.com/developers/branding/
