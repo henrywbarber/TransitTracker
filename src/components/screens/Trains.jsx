@@ -32,6 +32,10 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "Howard-bound",
+        5: "95th/Dan Ryan-bound",
+      },
     },
     {
       label: "Blue",
@@ -40,6 +44,10 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "O’Hare-bound",
+        5: "Forest Park-bound",
+      },
     },
     {
       label: "Brown",
@@ -48,6 +56,10 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "Kimball-bound",
+        5: "Loop-bound",
+      },
     },
     {
       label: "Green",
@@ -56,6 +68,10 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "Harlem/Lake-bound",
+        5: "Ashland/63rd- or Cottage Grove-bound",
+      },
     },
     {
       label: "Orange",
@@ -64,6 +80,10 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "Loop-bound",
+        5: "Midway-bound",
+      },
     },
     {
       label: "Pink",
@@ -72,6 +92,10 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "Loop-bound",
+        5: "54th/Cermak-bound",
+      },
     },
     {
       label: "Purple",
@@ -80,6 +104,10 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "Linden-bound",
+        5: "Howard- or Loop-bound",
+      },
     },
     {
       label: "Yellow",
@@ -88,8 +116,13 @@ function Trains() {
       stations: [],
       isFiltered: false,
       dropdownOn: false,
+      directions: {
+        1: "Skokie-bound",
+        5: "Howard-bound",
+      },
     },
   ]);
+
 
   useEffect(() => {
     const fetchStations = async () => {
@@ -166,7 +199,9 @@ function Trains() {
                       station_name: stop.station_name,
                       station_descriptive_name: stop.station_descriptive_name,
                       stops: [
-                        { stop_id: stop.stop_id }, // Add the first stop
+                        { stop_id: stop.stop_id,
+                          stop_name: stop.stop_name,
+                         }, // Add the first stop
                       ],
                       ada: stop.ada,
                       dropdownOn: false,
@@ -185,7 +220,7 @@ function Trains() {
                       ) {
                         return {
                           ...station,
-                          stops: [...station.stops, { stop_id: stop.stop_id }],
+                          stops: [...station.stops, { stop_id: stop.stop_id, stop_name: stop.stop_name }],
                         };
                       }
                     }
@@ -485,86 +520,131 @@ const fetchStopPredictions = async (stopId) => {
                                 item.station_descriptive_name
                               )}
                             </Text>
+
                             {item.dropdownOn && (
                               <View style={styles.expandedContent}>
                                 {item.stops.map((stop, stopIndex) => {
-                                  // Get predictions for each stop
                                   const predictions =
                                     stationPredictions[stop.stop_id];
 
                                   return (
-                                    <View key={stopIndex}>
-                                      <Text style={styles.stopSubText}>
-                                        Predictions for {stop.station_name} (
-                                        {stop.direction_id === 1
-                                          ? "Towards Howard"
-                                          : "Towards 95th"}
-                                        )
+                                    <View
+                                      key={stopIndex}
+                                      style={
+                                        stopIndex !== 0
+                                          ? { paddingTop: 10 }
+                                          : {}
+                                      }
+                                    >
+                                      <Text style={styles.stopPredictionTitle}>
+                                        {stop.stop_name}
                                       </Text>
+
+                                      <View
+                                        style={styles.predictionTableHeader}
+                                      >
+                                        <Text
+                                          style={[
+                                            styles.predictionText,
+                                            styles.boldText,
+                                          ]}
+                                        >
+                                          Run
+                                        </Text>
+                                        <Text
+                                          style={[
+                                            styles.predictionText,
+                                            styles.boldText,
+                                          ]}
+                                        >
+                                          Direction
+                                        </Text>
+                                        <Text
+                                          style={[
+                                            styles.predictionText,
+                                            styles.boldText,
+                                          ]}
+                                        >
+                                          ETA
+                                        </Text>
+                                      </View>
 
                                       {predictions ? (
                                         <View>
-                                          <View
-                                            style={styles.predictionTableHeader}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.predictionText,
-                                                styles.boldText,
-                                              ]}
-                                            >
-                                              Train
-                                            </Text>
-                                            <Text
-                                              style={[
-                                                styles.predictionText,
-                                                styles.boldText,
-                                              ]}
-                                            >
-                                              Direction
-                                            </Text>
-                                            <Text
-                                              style={[
-                                                styles.predictionText,
-                                                styles.boldText,
-                                              ]}
-                                            >
-                                              Arrival Time
-                                            </Text>
-                                          </View>
-
                                           {predictions.map(
-                                            (prediction, index) => (
-                                              <View
-                                                key={index}
-                                                style={styles.predictionRow}
-                                              >
-                                                <Text
-                                                  style={styles.predictionText}
+                                            (prediction, index) => {
+                                              const arrivalTime = new Date(
+                                                prediction.arrT
+                                              );
+                                              const currentTime = new Date();
+                                              const timeDiff = Math.round(
+                                                (arrivalTime - currentTime) /
+                                                  60000
+                                              );
+                                              let etaTextStyle =
+                                                styles.predictionText;
+                                              // Is it live or scheduled data? Bold for live
+                                              if (prediction.isSch === "0") {
+                                                etaTextStyle = [
+                                                  etaTextStyle,
+                                                  styles.boldText,
+                                                ];
+                                              }
+
+                                              if (prediction.isDly === "1") {
+                                                etaTextStyle = [
+                                                  etaTextStyle,
+                                                  { color: "red" }, // Make text red if delayed
+                                                ];
+                                              }
+
+                                              if (
+                                                prediction.isApp === "1" ||
+                                                timeDiff <= 2
+                                              ) {
+                                                etaTextStyle = [
+                                                  etaTextStyle,
+                                                  { color: "green" }, // Make text green if DUE
+                                                ];
+                                              }
+
+                                              return (
+                                                <View
+                                                  key={index}
+                                                  style={styles.predictionRow}
                                                 >
-                                                  {prediction.rn}
-                                                </Text>
-                                                <Text
-                                                  style={styles.predictionText}
-                                                >
-                                                  {prediction.destNm}
-                                                </Text>
-                                                <Text
-                                                  style={styles.predictionText}
-                                                >
-                                                  {new Date(
-                                                    prediction.arrT
-                                                  ).toLocaleTimeString([], {
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                  })}
-                                                </Text>
-                                              </View>
-                                            )
+                                                  <Text
+                                                    style={
+                                                      styles.predictionText
+                                                    }
+                                                  >
+                                                    {prediction.rn}
+                                                  </Text>
+                                                  <Text
+                                                    style={
+                                                      styles.predictionText
+                                                    }
+                                                  >
+                                                    {prediction.destNm}
+                                                  </Text>
+                                                  <Text style={etaTextStyle}>
+                                                    {prediction.isApp === "1" ||
+                                                    timeDiff <= 2
+                                                      ? "DUE"
+                                                      : `${timeDiff} min`}
+                                                  </Text>
+                                                </View>
+                                              );
+                                            }
                                           )}
                                         </View>
                                       ) : (
-                                        <Text style={styles.stopSubText}>
+                                        <Text
+                                          style={[
+                                            styles.predictionText,
+                                            { padding: 10 },
+                                          ]}
+                                        >
                                           No predictions available.
                                         </Text>
                                       )}
@@ -756,6 +836,11 @@ const styles = StyleSheet.create({
   },
   stopName: {
     fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  stopPredictionTitle: {
+    fontSize: 16,
     fontWeight: "bold",
     color: "#333",
   },
