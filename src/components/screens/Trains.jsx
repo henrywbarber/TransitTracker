@@ -23,15 +23,14 @@ function Trains() {
   const [filteredStations, setFilteredStations] = useState({});
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [stations, setStations] = useState([]);
   const [lines, setLines] = useState([
     {
       label: "Red",
       codes: ["red"],
       color: "#c60c30",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "Howard-bound",
         5: "95th/Dan Ryan-bound",
@@ -42,8 +41,8 @@ function Trains() {
       codes: ["blue"],
       color: "#00a1de",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "O’Hare-bound",
         5: "Forest Park-bound",
@@ -54,8 +53,8 @@ function Trains() {
       codes: ["brn"],
       color: "#62361b",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "Kimball-bound",
         5: "Loop-bound",
@@ -66,8 +65,8 @@ function Trains() {
       codes: ["g"],
       color: "#009b3a",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "Harlem/Lake-bound",
         5: "Ashland/63rd- or Cottage Grove-bound",
@@ -78,8 +77,8 @@ function Trains() {
       codes: ["o"],
       color: "#f9461c",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "Loop-bound",
         5: "Midway-bound",
@@ -90,8 +89,8 @@ function Trains() {
       codes: ["pnk"],
       color: "#e27ea6",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "Loop-bound",
         5: "54th/Cermak-bound",
@@ -102,8 +101,8 @@ function Trains() {
       codes: ["p", "pexp"],
       color: "#522398",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "Linden-bound",
         5: "Howard- or Loop-bound",
@@ -114,15 +113,14 @@ function Trains() {
       codes: ["y"],
       color: "#f9e300",
       stations: [],
-      isFiltered: false,
       dropdownOn: false,
+      isFiltered: false,
       directions: {
         1: "Skokie-bound",
         5: "Howard-bound",
       },
     },
   ]);
-
 
   useEffect(() => {
     const fetchStations = async () => {
@@ -133,9 +131,6 @@ function Trains() {
 
         const stopData = response.data;
 
-        // Create a map to store unique stations by map_id
-        const mapStations = {};
-
         // Create a copy of lines to update
         let updatedLines = lines.map((line) => ({
           ...line,
@@ -145,42 +140,6 @@ function Trains() {
         stopData.forEach((stop) => {
           const mapId = stop.map_id;
 
-          // 1. Populate mapStations with unique map_id entries
-          if (!mapStations[mapId]) {
-            mapStations[mapId] = {
-              map_id: mapId,
-              station_name: stop.station_name,
-              station_descriptive_name: stop.station_descriptive_name,
-              ada: stop.ada,
-              dropdownOn: false,
-              stops: [], // Initialize empty stops array
-            };
-          }
-
-          // Ensure unique stop_id within the station
-          const existingStop = mapStations[mapId].stops.find(
-            (s) => s.stop_id === stop.stop_id
-          );
-          if (!existingStop) {
-            mapStations[mapId].stops.push({
-              stop_id: stop.stop_id,
-              stop_name: stop.stop_name,
-              direction_id: stop.direction_id,
-              ada: stop.ada,
-              lines: {
-                Red: stop.red || false,
-                Blue: stop.blue || false,
-                Brown: stop.brn || false,
-                Green: stop.g || false,
-                Orange: stop.o || false,
-                Pink: stop.pnk || false,
-                Purple: stop.p || stop.pexp || false,
-                Yellow: stop.y || false,
-              },
-            });
-          }
-
-          // 2. Add map_id to the corresponding line if it's not already added
           updatedLines = updatedLines.map((line) => {
             // Check if the current stop belongs to the current line
             if (line.codes.some((code) => stop[code])) {
@@ -199,9 +158,7 @@ function Trains() {
                       station_name: stop.station_name,
                       station_descriptive_name: stop.station_descriptive_name,
                       stops: [
-                        { stop_id: stop.stop_id,
-                          stop_name: stop.stop_name,
-                         }, // Add the first stop
+                        { stop_id: stop.stop_id, stop_name: stop.stop_name }, // Add the first stop
                       ],
                       ada: stop.ada,
                       dropdownOn: false,
@@ -220,7 +177,13 @@ function Trains() {
                       ) {
                         return {
                           ...station,
-                          stops: [...station.stops, { stop_id: stop.stop_id, stop_name: stop.stop_name }],
+                          stops: [
+                            ...station.stops,
+                            {
+                              stop_id: stop.stop_id,
+                              stop_name: stop.stop_name,
+                            },
+                          ],
                         };
                       }
                     }
@@ -233,8 +196,6 @@ function Trains() {
           });
         });
 
-        // Set the updated states
-        setStations(Object.values(mapStations)); // Convert mapStations to array
         setLines(updatedLines); // Update lines with grouped stations
       } catch (error) {
         console.error("Error fetching train station data:", error);
@@ -246,45 +207,44 @@ function Trains() {
     fetchStations();
   }, []);
 
-
-
   // Log stations and lines whenever they change
-  useEffect(() => {
-    console.log("Updated Stations:", stations.slice(0, 1)); // Log first 5 stations
-  }, [stations]); // This will run whenever `stations` changes
+  // useEffect(() => {
+  //   console.log("Updated Stations:", stations.slice(0, 1)); // Log first 5 stations
+  // }, [stations]); // This will run whenever `stations` changes
 
-  useEffect(() => {
-    console.log("Updated Lines:", lines.slice(0, 1)); // Log first 5 lines
-  }, [lines]); // This will run whenever `lines` changes
+  // useEffect(() => {
+  //   console.log("Updated Lines:", lines.slice(0, 1)); // Log first 5 lines
+  // }, [lines]); // This will run whenever `lines` changes
 
-const [stationPredictions, setStationPredictions] = useState([]);
+  const [stationPredictions, setStationPredictions] = useState([]);
 
-const fetchStopPredictions = async (stopId) => {
-  try {
-    console.log(`Fetching Station Predictions for stopId: ${stopId}`); // Log stopId being fetched
+  const fetchStopPredictions = async (stopId) => {
+    try {
+      console.log(`Fetching Station Predictions for stopId: ${stopId}`); // Log stopId being fetched
 
-    const response = await axios.get(
-      `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_API_KEY}&stpid=${stopId}&outputType=JSON`
-    );
+      const response = await axios.get(
+        `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_API_KEY}&stpid=${stopId}&outputType=JSON`
+      );
 
-    // console.log("Raw Response Data:", response.data); // Log the raw response data to inspect its structure
+      // console.log("Raw Response Data:", response.data); // Log the raw response data to inspect its structure
 
-    const predictionsData = response.data.ctatt ? response.data.ctatt.eta : [];
-    // console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
+      const predictionsData = response.data.ctatt
+        ? response.data.ctatt.eta
+        : [];
+      // console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
 
-    setStationPredictions((prevStationPredictions) => {
-      const updatedPredictions = {
-        ...prevStationPredictions,
-        [stopId]: predictionsData,
-      };
-    //   console.log("Updated Station Predictions State:", updatedPredictions); // Log the updated state
-      return updatedPredictions;
-    });
-  } catch (error) {
-    console.error(`Error fetching predictions for stopId ${stopId}:`, error); // Log any errors
-  }
-};
-
+      setStationPredictions((prevStationPredictions) => {
+        const updatedPredictions = {
+          ...prevStationPredictions,
+          [stopId]: predictionsData,
+        };
+        //   console.log("Updated Station Predictions State:", updatedPredictions); // Log the updated state
+        return updatedPredictions;
+      });
+    } catch (error) {
+      console.error(`Error fetching predictions for stopId ${stopId}:`, error); // Log any errors
+    }
+  };
 
   const toggleStopDropdown = (item) => {
     setLines((prevLines) =>
@@ -311,25 +271,20 @@ const fetchStopPredictions = async (stopId) => {
 
   const toggleStationDropdown = (item) => {
     setStations((prevStations) =>
-      prevStations.map((station) => {
-        if (stations.some((station) => station.map_id === item.map_id)) {
-          const updatedStations = stations.map((station) =>
-            station.map_id === item.map_id
-              ? {
-                  ...station,
-                  dropdownOn: !station.dropdownOn,
-                }
-              : station
-          );
-          // Trigger prediction fetch if dropdown is being opened
-          if (!item.dropdownOn) {
-            item.stops.forEach((stop) => fetchStopPredictions(stop.stop_id));
-          }
-          return { ...line, stations: updatedStations };
-        }
-        return line;
-      })
+      prevStations.map((station) =>
+        station.map_id === item.map_id
+          ? {
+              ...station,
+              dropdownOn: !station.dropdownOn,
+            }
+          : station
+      )
     );
+
+    // Trigger prediction fetch if dropdown is being opened
+    // if (!item.dropdownOn) {
+    //   item.stops.forEach((stop) => fetchStopPredictions(stop.stop_id));
+    // }
   };
 
   const handleSearch = (text) => {
@@ -337,11 +292,11 @@ const fetchStopPredictions = async (stopId) => {
   };
 
   // Filter stations based on the search term
-  //   const filterStations = (line) => {
-  //     return line.stations.filter((stop) =>
-  //       stop.station_name.toLowerCase().includes(search.toLowerCase())
-  //     );
-  //   };
+  const filterStations = (line) => {
+    return line.stations.filter((stop) =>
+      stop.station_name.toLowerCase().includes(search.toLowerCase())
+    );
+  };
 
   const extractConnections = (stopName) => {
     const regex = /\(([^)]+)\)/g;
@@ -360,37 +315,6 @@ const fetchStopPredictions = async (stopId) => {
     );
   };
 
-  const toggleFilterModal = () => {
-    setIsFilterModalVisible(!isFilterModalVisible);
-  };
-
-  const applyFilters = () => {
-    setLines((prevLines) =>
-      prevLines.map((line) => ({
-        ...line,
-        isFiltered: !filters[line.label.toLowerCase()],
-      }))
-    );
-    toggleFilterModal();
-  };
-
-  const renderFilterItem = ({ item }) => (
-    <View style={styles.filterItem}>
-      <Text style={styles.filterItemText}>{item.label}</Text>
-      <Switch
-        value={filters[item.label.toLowerCase()]}
-        onValueChange={(value) =>
-          setFilters((prev) => ({
-            ...prev,
-            [item.label.toLowerCase()]: value,
-          }))
-        }
-        trackColor={{ false: "#FFFFFF", true: "#4169e1" }}
-        thumbColor={filters[item.label.toLowerCase()] ? "#FFFFFF" : "#4169e1"}
-      />
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -404,12 +328,6 @@ const fetchStopPredictions = async (stopId) => {
           <>
             <View style={styles.header}>
               <Text style={styles.headerTitle}>Chicago Train Stations</Text>
-              <TouchableOpacity
-                style={styles.filterButton}
-                onPress={toggleFilterModal}
-              >
-                <Ionicons name="filter" size={24} color="#fff" />
-              </TouchableOpacity>
             </View>
             <View style={styles.searchContainer}>
               <Ionicons
@@ -428,301 +346,210 @@ const fetchStopPredictions = async (stopId) => {
               />
             </View>
 
-            {/* List dependent on active search */}
-            {search.length > 0
-              ? [
-                  // Searching, display station data
-                  <SectionList
-                    sections={stations
-                      .filter((station) =>
-                        station.station_name
-                          .toLowerCase()
-                          .includes(search.toLowerCase())
-                      ) // Filter stations by search
-                      .map((station) => ({
-                        title: station.station_descriptive_name, // Use station_descriptive_name for the section title
-                        data: station.dropdownOn ? station.stops : [], // Show stops if dropdown is toggled on
-                        map_id: station.map_id, // Pass map_id to identify the station
-                      }))}
-                    keyExtractor={(item, index) => item.stop_id + index} // Use stop_id as the key
-                    renderSectionHeader={({ section }) => (
-                      <View style={styles.sectionHeader}>
-                        <TouchableOpacity
-                          onPress={() => toggleStationDropdown(section)}
-                        >
-                          <Text
-                            style={[
-                              styles.sectionTitle,
-                              { color: section.color },
-                            ]}
-                          >
-                            {section.title} - {section.data.length} stops
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    renderItem={({ item, section }) => (
-                      <TouchableOpacity
-                        style={styles.stationItem}
-                        onPress={() => toggleStopDropdown(item)} // Toggle the dropdown for the selected station
-                      >
-                        <Text style={styles.stationText}>{item.stop_name}</Text>
-                        {section.dropdownOn && (
-                          <View style={styles.stopList}>
-                            {item.stops.map((stop) => (
-                              <Text key={stop.stop_id} style={styles.stopText}>
-                                {stop.stop_name}
-                              </Text>
-                            ))}
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    )}
-                  />,
-                ]
-              : [
-                  // Not Searching, display line data
-                  <SectionList
-                    sections={lines
+            <SectionList
+              sections={
+                search.length > 0
+                  ? [
+                      {
+                        title: "Search Results",
+                        data: lines
+                          .filter((line) => !line.isFiltered)
+                          .flatMap((line) => filterStations(line))
+                          .sort((a, b) => a.map_id - b.map_id),
+                        color: "#000", // Default color for search results
+                        key: "searchResults", // Use a unique key for search results
+                      },
+                    ]
+                  : lines // When not searching, show normal line-based sections
                       .filter((line) => !line.isFiltered)
                       .map((line) => ({
                         title: line.label,
-                        data: line.dropdownOn ? line.stations : [],
+                        data: line.dropdownOn ? filterStations(line) : [],
                         color: line.color,
-                      }))}
-                    renderItem={({ item, section }) => (
-                      <TouchableOpacity
-                        onPress={() => toggleStopDropdown(item)}
-                      >
-                        <View style={styles.stopCard}>
-                          <View
-                            style={[
-                              styles.stopColorIndicator,
-                              { backgroundColor: section.color },
-                            ]}
+                        stops: line.stations.length,
+                        key: line.label, // Use the line label as a unique key
+                      }))
+              }
+              keyExtractor={(item, index) => `${item.stop_id}-${index}`} // Use a unique key for each item
+              renderSectionHeader={({ section }) =>
+                search.length > 0 ? null : ( // Hide section headers during search
+                  <TouchableOpacity
+                    onPress={() => toggleDropdown(section.title)}
+                    style={[
+                      styles.sectionHeader,
+                      { borderLeftColor: section.color },
+                    ]}
+                  >
+                    <Text style={styles.lineTitle}>{section.title} Line</Text>
+                    <Ionicons
+                      name={
+                        section.data.length > 0 ? "chevron-up" : "chevron-down"
+                      }
+                      size={24}
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                )
+              }
+              renderItem={({ item, section }) => (
+                <TouchableOpacity onPress={() => toggleStopDropdown(item)}>
+                  <View style={styles.stopCard}>
+                    <View
+                      style={[
+                        styles.stopColorIndicator,
+                        {
+                          backgroundColor:
+                            search.length > 0
+                              ? lines.find((line) =>
+                                  line.stations.some((station) =>
+                                    station.stops.some(
+                                      (stop) => stop.stop_id === item.stops[0].stop_id
+                                    )
+                                  )
+                                )?.color || "#333" // Fallback color if line not found
+                              : section.color, // Default color when not searching
+                        },
+                      ]}
+                    />
+                    <View style={styles.stopInfo}>
+                      <View style={styles.stationTitleContainer}>
+                        <Text style={styles.stopName}>{item.station_name}</Text>
+                        {item.ada && (
+                          <FontAwesome
+                            name="wheelchair"
+                            size={14}
+                            color="black"
                           />
-                          <View style={styles.stopInfo}>
-                            <View style={styles.stationTitleContainer}>
-                              <Text style={styles.stopName}>
-                                {item.station_name}
-                              </Text>
-                              {item.ada && (
-                                <FontAwesome
-                                  name="wheelchair"
-                                  size={14}
-                                  color="black"
-                                />
-                              )}
-                            </View>
-                            <Text style={styles.stopSubText}>
-                              Connections:{" "}
-                              {extractConnections(
-                                item.station_descriptive_name
-                              )}
-                            </Text>
+                        )}
+                      </View>
+                      <Text style={styles.stopSubText}>
+                        Connections:{" "}
+                        {extractConnections(item.station_descriptive_name)}
+                      </Text>
 
-                            {item.dropdownOn && (
-                              <View style={styles.expandedContent}>
-                                {item.stops.map((stop, stopIndex) => {
-                                  const predictions =
-                                    stationPredictions[stop.stop_id];
+                      {item.dropdownOn && (
+                        <View style={styles.expandedContent}>
+                          {item.stops.map((stop, stopIndex) => {
+                            const predictions =
+                              stationPredictions[stop.stop_id];
 
-                                  return (
-                                    <View
-                                      key={stopIndex}
-                                      style={
-                                        stopIndex !== 0
-                                          ? { paddingTop: 10 }
-                                          : {}
+                            return (
+                              <View
+                                key={stopIndex}
+                                style={
+                                  stopIndex !== 0 ? { paddingTop: 10 } : {}
+                                }
+                              >
+                                <Text style={styles.stopPredictionTitle}>
+                                  {stop.stop_name}
+                                </Text>
+
+                                <View style={styles.predictionTableHeader}>
+                                  <Text
+                                    style={[
+                                      styles.predictionText,
+                                      styles.boldText,
+                                    ]}
+                                  >
+                                    Run
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.predictionText,
+                                      styles.boldText,
+                                    ]}
+                                  >
+                                    Direction
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.predictionText,
+                                      styles.boldText,
+                                    ]}
+                                  >
+                                    ETA
+                                  </Text>
+                                </View>
+
+                                {predictions ? (
+                                  <View>
+                                    {predictions.map((prediction, index) => {
+                                      const arrivalTime = new Date(
+                                        prediction.arrT
+                                      );
+                                      const currentTime = new Date();
+                                      const timeDiff = Math.round(
+                                        (arrivalTime - currentTime) / 60000
+                                      );
+                                      let etaTextStyle = styles.predictionText;
+                                      if (prediction.isSch === "0") {
+                                        etaTextStyle = [
+                                          etaTextStyle,
+                                          styles.boldText,
+                                        ];
                                       }
-                                    >
-                                      <Text style={styles.stopPredictionTitle}>
-                                        {stop.stop_name}
-                                      </Text>
 
-                                      <View
-                                        style={styles.predictionTableHeader}
-                                      >
-                                        <Text
-                                          style={[
-                                            styles.predictionText,
-                                            styles.boldText,
-                                          ]}
+                                      if (prediction.isDly === "1") {
+                                        etaTextStyle = [
+                                          etaTextStyle,
+                                          { color: "red" },
+                                        ];
+                                      }
+
+                                      if (
+                                        prediction.isApp === "1" ||
+                                        timeDiff <= 2
+                                      ) {
+                                        etaTextStyle = [
+                                          etaTextStyle,
+                                          { color: "green" },
+                                        ];
+                                      }
+
+                                      return (
+                                        <View
+                                          key={index}
+                                          style={styles.predictionRow}
                                         >
-                                          Run
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.predictionText,
-                                            styles.boldText,
-                                          ]}
-                                        >
-                                          Direction
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.predictionText,
-                                            styles.boldText,
-                                          ]}
-                                        >
-                                          ETA
-                                        </Text>
-                                      </View>
-
-                                      {predictions ? (
-                                        <View>
-                                          {predictions.map(
-                                            (prediction, index) => {
-                                              const arrivalTime = new Date(
-                                                prediction.arrT
-                                              );
-                                              const currentTime = new Date();
-                                              const timeDiff = Math.round(
-                                                (arrivalTime - currentTime) /
-                                                  60000
-                                              );
-                                              let etaTextStyle =
-                                                styles.predictionText;
-                                              // Is it live or scheduled data? Bold for live
-                                              if (prediction.isSch === "0") {
-                                                etaTextStyle = [
-                                                  etaTextStyle,
-                                                  styles.boldText,
-                                                ];
-                                              }
-
-                                              if (prediction.isDly === "1") {
-                                                etaTextStyle = [
-                                                  etaTextStyle,
-                                                  { color: "red" }, // Make text red if delayed
-                                                ];
-                                              }
-
-                                              if (
-                                                prediction.isApp === "1" ||
-                                                timeDiff <= 2
-                                              ) {
-                                                etaTextStyle = [
-                                                  etaTextStyle,
-                                                  { color: "green" }, // Make text green if DUE
-                                                ];
-                                              }
-
-                                              return (
-                                                <View
-                                                  key={index}
-                                                  style={styles.predictionRow}
-                                                >
-                                                  <Text
-                                                    style={
-                                                      styles.predictionText
-                                                    }
-                                                  >
-                                                    {prediction.rn}
-                                                  </Text>
-                                                  <Text
-                                                    style={
-                                                      styles.predictionText
-                                                    }
-                                                  >
-                                                    {prediction.destNm}
-                                                  </Text>
-                                                  <Text style={etaTextStyle}>
-                                                    {prediction.isApp === "1" ||
-                                                    timeDiff <= 2
-                                                      ? "DUE"
-                                                      : `${timeDiff} min`}
-                                                  </Text>
-                                                </View>
-                                              );
-                                            }
-                                          )}
+                                          <Text style={styles.predictionText}>
+                                            {prediction.rn}
+                                          </Text>
+                                          <Text style={styles.predictionText}>
+                                            {prediction.destNm}
+                                          </Text>
+                                          <Text style={etaTextStyle}>
+                                            {prediction.isApp === "1" ||
+                                            timeDiff <= 2
+                                              ? "DUE"
+                                              : `${timeDiff} min`}
+                                          </Text>
                                         </View>
-                                      ) : (
-                                        <Text
-                                          style={[
-                                            styles.predictionText,
-                                            { padding: 10 },
-                                          ]}
-                                        >
-                                          No predictions available.
-                                        </Text>
-                                      )}
-                                    </View>
-                                  );
-                                })}
+                                      );
+                                    })}
+                                  </View>
+                                ) : (
+                                  <Text
+                                    style={[
+                                      styles.predictionText,
+                                      { padding: 10 },
+                                    ]}
+                                  >
+                                    No predictions available.
+                                  </Text>
+                                )}
                               </View>
-                            )}
-                          </View>
+                            );
+                          })}
                         </View>
-                      </TouchableOpacity>
-                    )}
-                    renderSectionHeader={({ section }) =>
-                      search.length > 0 ? null : (
-                        <TouchableOpacity
-                          onPress={() => toggleDropdown(section.title)}
-                          style={[
-                            styles.sectionHeader,
-                            { borderLeftColor: section.color },
-                          ]}
-                        >
-                          <Text style={styles.lineTitle}>
-                            {section.title} Line
-                          </Text>
-                          <Ionicons
-                            name={
-                              section.data.length > 0
-                                ? "chevron-up"
-                                : "chevron-down"
-                            }
-                            size={24}
-                            color="#666"
-                          />
-                        </TouchableOpacity>
-                      )
-                    }
-                    keyExtractor={(item, section) =>
-                      `${section.color}-${item.map_id}`
-                    }
-                  />,
-                ]}
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
           </>
         )}
       </View>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isFilterModalVisible}
-        onRequestClose={toggleFilterModal}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Filter Stations</Text>
-            {/* <FlatList
-              data={lines.map((line) => ({
-                key: line.codes[0],
-                label: line.label,
-              }))}
-              renderItem={renderFilterItem}
-              keyExtractor={(item) => item.key}
-            /> */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={applyFilters}
-              >
-                <Text style={styles.modalButtonText}>Apply Filters</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={toggleFilterModal}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -873,79 +700,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   boldText: {
-    fontWeight: "bold",
-  },
-
-  filterButton: {
-    backgroundColor: "#007AFF",
-    padding: 10,
-    borderRadius: 8,
-  },
-  clearFiltersButton: {
-    backgroundColor: "#ff4444",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  clearFiltersText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    width: "80%",
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 16,
-    color: "#333",
-  },
-  filterItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  filterItemText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
-  },
-  modalButton: {
-    flex: 1,
-    backgroundColor: "#007AFF",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginHorizontal: 4,
-  },
-  cancelButton: {
-    backgroundColor: "#ff4444",
-  },
-  modalButtonText: {
-    color: "white",
-    fontSize: 16,
     fontWeight: "bold",
   },
   loadingContainer: {
