@@ -289,6 +289,16 @@ function Trains() {
 
   const handleSearch = (text) => {
     setSearch(text);
+    // Reset all station dropdowns when searching
+    setLines((prevLines) =>
+      prevLines.map((line) => ({
+        ...line,
+        stations: line.stations.map((station) => ({
+          ...station,
+          dropdownOn: false,
+        })),
+      }))
+    );
   };
 
   // Filter stations based on the search term
