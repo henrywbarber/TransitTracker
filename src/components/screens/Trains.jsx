@@ -208,20 +208,11 @@ function Trains() {
     fetchStations();
   }, []);
 
-  // Log updates
-  // useEffect(() => {
-  //   console.log("Updated Stations:", stations.slice(0, 1)); // Log first 5 stations
-  // }, [stations]); // This will run whenever `stations` changes
-
-  // useEffect(() => {
-  //   console.log("Updated Lines:", lines.slice(0, 1)); // Log first 5 lines
-  // }, [lines]); // This will run whenever `lines` changes
-
   const [stationPredictions, setStationPredictions] = useState([]);
 
   const fetchStopPredictions = async (stopId) => {
     try {
-      console.log(`Fetching Station Predictions for stopId: ${stopId}`);
+      // console.log(`Fetching Station Predictions for stopId: ${stopId}`);
 
       const response = await axios.get(
         `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_API_KEY}&stpid=${stopId}&outputType=JSON`
@@ -232,7 +223,7 @@ function Trains() {
       const predictionsData = response.data.ctatt
         ? response.data.ctatt.eta
         : [];
-      console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
+      // console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
 
       setStationPredictions((prevStationPredictions) => {
         const updatedPredictions = {
@@ -249,14 +240,14 @@ function Trains() {
 
   const toggleStopDropdown = (item) => {
     //console.log(section.title)
-    console.log(item);
+    // console.log(item);
     setLines((prevLines) =>
       prevLines.map((line) => {
         if (
           line.stations.some((station) => station.map_id === item.map_id) &&
           line.label == item.lineLabel
         ) {
-          console.log("passed if");
+          // console.log("passed if");
           const updatedStations = line.stations.map((station) =>
             station.map_id === item.map_id
               ? {
@@ -427,18 +418,7 @@ function Trains() {
                           />
                         )}
                       </View>
-                      <Text style={styles.stopSubText}>
-                        map_id: {item.map_id}
-                      </Text>
-                      {item.stops.map((stop) => (
-                        <Text key={stop.stop_id} style={styles.stopSubText}>
-                          stop_id: {stop.stop_id} stop_name: {stop.stop_name}
-                        </Text>
-                      ))}
-                      {console.log("Section")}
-                      {console.log(section)}
-                      {console.log("Item")}
-                      {console.log(item)}
+                      
                       <Text style={styles.stopSubText}>
                         Connections:{" "}
                         {extractConnections(item.station_descriptive_name)}
@@ -447,25 +427,21 @@ function Trains() {
                       {item.dropdownOn && (
                         <View style={styles.expandedContent}>
                           {item.stops.map((stop, stopIndex) => {
-                            // OLD
-                            const predictions =
-                              stationPredictions[stop.stop_id];
+                            
+                            const rawPredictions =
+                              stationPredictions[stop.stop_id] || [];
 
-                            // NEW (DOES NOT WORK)
-                            // const lineCodesToCompare =
-                            //   search.length > 0
-                            //     ? item.line_codes
-                            //     : section.line_codes; // HERE FOR NO SEARCH
+                            const lineCodesToCompare = item.line_codes.map(
+                              (code) => code.toLowerCase()
+                            );
 
-                            // console.log("CODES: " + lineCodesToCompare);
-
-                            // const predictions = stationPredictions[
-                            //   stop.stop_id
-                            // ]?.filter((prediction) =>
-                            //   lineCodesToCompare.includes(prediction.rt)
-                            // );
-
-
+                            const predictions = rawPredictions.filter(
+                              (prediction) => {
+                                return lineCodesToCompare.includes(
+                                  prediction.rt.toLowerCase()
+                                );
+                              }
+                            );
 
                             return (
                               <View
