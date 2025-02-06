@@ -162,6 +162,8 @@ function Trains() {
                       ],
                       ada: stop.ada,
                       dropdownOn: false,
+                      lineLabel: line.label,    
+                        lineColor: line.color,
                     },
                   ],
                 };
@@ -308,8 +310,8 @@ function Trains() {
   const filterStations = (line) => {
     return line.stations.filter((stop) =>
       stop.station_name.toLowerCase().includes(search.toLowerCase())
-        )
-        .map((station) => ({...station, lineLabel: line.label}));
+        );
+        //.map((station) => ({...station, lineLabel: line.label}));
   };
 
   const extractConnections = (stopName) => {
