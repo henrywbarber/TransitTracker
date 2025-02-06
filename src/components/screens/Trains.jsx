@@ -247,9 +247,12 @@ function Trains() {
   };
 
   const toggleStopDropdown = (item) => {
+    //console.log(section.title)
+    console.log(item)
     setLines((prevLines) =>
       prevLines.map((line) => {
-        if (line.stations.some((station) => station.map_id === item.map_id)) {
+        if (line.stations.some((station) => station.map_id === item.map_id) && line.label == item.lineLabel ) {
+            console.log("passed if")
           const updatedStations = line.stations.map((station) =>
             station.map_id === item.map_id
               ? {
@@ -305,7 +308,8 @@ function Trains() {
   const filterStations = (line) => {
     return line.stations.filter((stop) =>
       stop.station_name.toLowerCase().includes(search.toLowerCase())
-    );
+        )
+        .map((station) => ({...station, lineLabel: line.label}));
   };
 
   const extractConnections = (stopName) => {
