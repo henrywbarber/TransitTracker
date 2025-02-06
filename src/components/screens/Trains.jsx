@@ -20,8 +20,8 @@ import { FontAwesome } from "@expo/vector-icons";
 
 function Trains() {
   const [search, setSearch] = useState("");
-  const [filteredStations, setFilteredStations] = useState({});
-  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  // const [filteredStations, setFilteredStations] = useState({});
+  // const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [lines, setLines] = useState([
     {
@@ -131,19 +131,16 @@ function Trains() {
 
         const stopData = response.data;
 
-        // Create a copy of lines to update
         let updatedLines = lines.map((line) => ({
           ...line,
-          stations: [], // Clear out stations initially
+          stations: [],
         }));
 
         stopData.forEach((stop) => {
           const mapId = stop.map_id;
 
           updatedLines = updatedLines.map((line) => {
-            // Check if the current stop belongs to the current line
             if (line.codes.some((code) => stop[code])) {
-              // Ensure the station (map_id) is unique within this line
               const stationExists = line.stations.some(
                 (station) => station.map_id === mapId
               );
@@ -158,9 +155,15 @@ function Trains() {
                       station_name: stop.station_name,
                       station_descriptive_name: stop.station_descriptive_name,
                       stops: [
-                        { stop_id: stop.stop_id, stop_name: stop.stop_name }, // Add the first stop
+                        {
+                          stop_id: stop.stop_id,
+                          stop_name: stop.stop_name,
+                        },
                       ],
                       ada: stop.ada,
+                      line_label: line.label,
+                      line_codes: line.codes,
+                      line_color: line.color,
                       dropdownOn: false,
                       lineLabel: line.label,    
                         lineColor: line.color,
@@ -168,12 +171,10 @@ function Trains() {
                   ],
                 };
               } else {
-                // Append the stop_id to the existing map_id station
                 return {
                   ...line,
                   stations: line.stations.map((station) => {
                     if (station.map_id === mapId) {
-                      // Add the stop_id to the stops array, if not already present
                       if (
                         !station.stops.some((s) => s.stop_id === stop.stop_id)
                       ) {
@@ -198,7 +199,7 @@ function Trains() {
           });
         });
 
-        setLines(updatedLines); // Update lines with grouped stations
+        setLines(updatedLines);
       } catch (error) {
         console.error("Error fetching train station data:", error);
       } finally {
@@ -209,7 +210,7 @@ function Trains() {
     fetchStations();
   }, []);
 
-  // Log stations and lines whenever they change
+  // Log updates
   // useEffect(() => {
   //   console.log("Updated Stations:", stations.slice(0, 1)); // Log first 5 stations
   // }, [stations]); // This will run whenever `stations` changes
@@ -222,7 +223,7 @@ function Trains() {
 
   const fetchStopPredictions = async (stopId) => {
     try {
-      console.log(`Fetching Station Predictions for stopId: ${stopId}`); // Log stopId being fetched
+      console.log(`Fetching Station Predictions for stopId: ${stopId}`);
 
       const response = await axios.get(
         `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_API_KEY}&stpid=${stopId}&outputType=JSON`
@@ -233,7 +234,7 @@ function Trains() {
       const predictionsData = response.data.ctatt
         ? response.data.ctatt.eta
         : [];
-      // console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
+      console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
 
       setStationPredictions((prevStationPredictions) => {
         const updatedPredictions = {
@@ -250,11 +251,14 @@ function Trains() {
 
   const toggleStopDropdown = (item) => {
     //console.log(section.title)
-    console.log(item)
+    console.log(item);
     setLines((prevLines) =>
       prevLines.map((line) => {
-        if (line.stations.some((station) => station.map_id === item.map_id) && line.label == item.lineLabel ) {
-            console.log("passed if")
+        if (
+          line.stations.some((station) => station.map_id === item.map_id) &&
+          line.label == item.lineLabel
+        ) {
+          console.log("passed if");
           const updatedStations = line.stations.map((station) =>
             station.map_id === item.map_id
               ? {
@@ -274,27 +278,26 @@ function Trains() {
     );
   };
 
-  const toggleStationDropdown = (item) => {
-    setStations((prevStations) =>
-      prevStations.map((station) =>
-        station.map_id === item.map_id
-          ? {
-              ...station,
-              dropdownOn: !station.dropdownOn,
-            }
-          : station
-      )
-    );
+  // const toggleStationDropdown = (item) => {
+  //   setStations((prevStations) =>
+  //     prevStations.map((station) =>
+  //       station.map_id === item.map_id
+  //         ? {
+  //             ...station,
+  //             dropdownOn: !station.dropdownOn,
+  //           }
+  //         : station
+  //     )
+  //   );
 
-    // Trigger prediction fetch if dropdown is being opened
-    // if (!item.dropdownOn) {
-    //   item.stops.forEach((stop) => fetchStopPredictions(stop.stop_id));
-    // }
-  };
+  //   // Trigger prediction fetch if dropdown is being opened
+  //   // if (!item.dropdownOn) {
+  //   //   item.stops.forEach((stop) => fetchStopPredictions(stop.stop_id));
+  //   // }
+  // };
 
   const handleSearch = (text) => {
     setSearch(text);
-    // Reset all station dropdowns when searching
     setLines((prevLines) =>
       prevLines.map((line) => ({
         ...line,
@@ -306,7 +309,6 @@ function Trains() {
     );
   };
 
-  // Filter stations based on the search term
   const filterStations = (line) => {
     return line.stations.filter((stop) =>
       stop.station_name.toLowerCase().includes(search.toLowerCase())
@@ -322,11 +324,10 @@ function Trains() {
 
   const toggleDropdown = (lineLabel) => {
     setLines((prevLines) =>
-      prevLines.map(
-        (line) =>
-          line.label === lineLabel
-            ? { ...line, dropdownOn: !line.dropdownOn } // Toggle dropdownOn for the matching line
-            : line // Keep other lines unchanged
+      prevLines.map((line) =>
+        line.label === lineLabel
+          ? { ...line, dropdownOn: !line.dropdownOn }
+          : line
       )
     );
   };
@@ -367,28 +368,25 @@ function Trains() {
                 search.length > 0
                   ? [
                       {
-                        title: "Search Results",
                         data: lines
-                          .filter((line) => !line.isFiltered)
                           .flatMap((line) => filterStations(line))
                           .sort((a, b) => a.map_id - b.map_id),
-                        color: "#000", // Default color for search results
-                        key: "searchResults", // Use a unique key for search results
+                        key: "searchResults",
                       },
                     ]
-                  : lines // When not searching, show normal line-based sections
+                  : lines
                       .filter((line) => !line.isFiltered)
                       .map((line) => ({
                         title: line.label,
                         data: line.dropdownOn ? filterStations(line) : [],
                         color: line.color,
                         stops: line.stations.length,
-                        key: line.label, // Use the line label as a unique key
+                        key: line.label,
                       }))
               }
-              keyExtractor={(item, index) => `${item.stop_id}-${index}`} // Use a unique key for each item
+              keyExtractor={(item, index) => `${item.stop_id}-${index}`}
               renderSectionHeader={({ section }) =>
-                search.length > 0 ? null : ( // Hide section headers during search
+                search.length > 0 ? null : (
                   <TouchableOpacity
                     onPress={() => toggleDropdown(section.title)}
                     style={[
@@ -415,15 +413,7 @@ function Trains() {
                         styles.stopColorIndicator,
                         {
                           backgroundColor:
-                            search.length > 0
-                              ? lines.find((line) =>
-                                  line.stations.some((station) =>
-                                    station.stops.some(
-                                      (stop) => stop.stop_id === item.stops[0].stop_id
-                                    )
-                                  )
-                                )?.color || "#333" // Fallback color if line not found
-                              : section.color, // Default color when not searching
+                            search.length > 0 ? item.line_color : section.color,
                         },
                       ]}
                     />
@@ -439,6 +429,18 @@ function Trains() {
                         )}
                       </View>
                       <Text style={styles.stopSubText}>
+                        map_id: {item.map_id}
+                      </Text>
+                      {item.stops.map((stop) => (
+                        <Text key={stop.stop_id} style={styles.stopSubText}>
+                          stop_id: {stop.stop_id} stop_name: {stop.stop_name}
+                        </Text>
+                      ))}
+                      {console.log("Section")}
+                      {console.log(section)}
+                      {console.log("Item")}
+                      {console.log(item)}
+                      <Text style={styles.stopSubText}>
                         Connections:{" "}
                         {extractConnections(item.station_descriptive_name)}
                       </Text>
@@ -446,8 +448,25 @@ function Trains() {
                       {item.dropdownOn && (
                         <View style={styles.expandedContent}>
                           {item.stops.map((stop, stopIndex) => {
+                            // OLD
                             const predictions =
                               stationPredictions[stop.stop_id];
+
+                            // NEW (DOES NOT WORK)
+                            // const lineCodesToCompare =
+                            //   search.length > 0
+                            //     ? item.line_codes
+                            //     : section.line_codes; // HERE FOR NO SEARCH
+
+                            // console.log("CODES: " + lineCodesToCompare);
+
+                            // const predictions = stationPredictions[
+                            //   stop.stop_id
+                            // ]?.filter((prediction) =>
+                            //   lineCodesToCompare.includes(prediction.rt)
+                            // );
+
+
 
                             return (
                               <View
