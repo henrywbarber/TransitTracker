@@ -151,6 +151,8 @@ function Trains() {
                       line_codes: line.codes,
                       line_color: line.color,
                       dropdownOn: false,
+                      lineLabel: line.label,    
+                      lineColor: line.color,
                     },
                   ],
                 };
@@ -267,11 +269,10 @@ function Trains() {
   };
 
   const filterStations = (line) => {
-    return line.stations
-      .filter((stop) =>
-        stop.station_name.toLowerCase().includes(search.toLowerCase())
-      )
-      .map((station) => ({ ...station, lineLabel: line.label }));
+    return line.stations.filter((stop) =>
+      stop.station_name.toLowerCase().includes(search.toLowerCase())
+        );
+        //.map((station) => ({...station, lineLabel: line.label}));
   };
 
   const extractConnections = (stopName) => {
