@@ -29,9 +29,7 @@ Links:
 - Dev Tools/Documentation: https://www.transitchicago.com/developers/ttdocs/
 - City of Chicago Train Stop ID List API: https://dev.socrata.com/foundry/data.cityofchicago.org/8pix-ypme
 - Train Tracker API: https://www.transitchicago.com/developers/traintracker/
-    API KEY: ee9224d87b9349c9a42e0a3977f425e9
 - Bus Tracker API: https://www.transitchicago.com/developers/bustracker/
-    API KEY: GYc2umjaqWFnZdAJnKqBU5dwd
 
 ## Revise
 Status: Incomplete  
