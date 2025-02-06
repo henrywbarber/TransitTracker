@@ -211,7 +211,7 @@ function Trains() {
       const predictionsData = response.data.ctatt
         ? response.data.ctatt.eta
         : [];
-      console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
+      // console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
 
       setStationPredictions((prevStationPredictions) => {
         const updatedPredictions = {
@@ -272,7 +272,6 @@ function Trains() {
     return line.stations.filter((stop) =>
       stop.station_name.toLowerCase().includes(search.toLowerCase())
         );
-        //.map((station) => ({...station, lineLabel: line.label}));
   };
 
   const extractConnections = (stopName) => {
