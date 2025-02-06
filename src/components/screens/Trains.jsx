@@ -166,7 +166,7 @@ function Trains() {
                       line_color: line.color,
                       dropdownOn: false,
                       lineLabel: line.label,    
-                        lineColor: line.color,
+                      lineColor: line.color,
                     },
                   ],
                 };
