@@ -20,6 +20,9 @@ function Busses() {
     const [filterModalVisible, setFilterModalVisible] = useState(false);
     const [search, setSearch] = useState("");
     const [busRoutes, setBusRoutes] = useState([]);
+    const [expandedRoutes, setExpandedRoutes] = useState({});
+    const [expandedDirs, setExpandedDirs] = useState({});
+    const [expandedStops, setExpandedStops] = useState({});
         // {
         //     routeNum: "123",
         //     routeName: "Downtown Express",
@@ -125,6 +128,21 @@ function Busses() {
         setSearch(text);
     };
 
+    const toggleExpand = (type, key) => {
+        switch (type){
+            case 'route':
+                setExpandedRoutes(prev => ({...prev, [key]: !prev[key]}));
+                break;
+            case 'direction':
+                setExpandedDirs(prev => ({...prev, [key]: !prev[key]}));
+                break;
+            case 'stop':
+                setExpandedStops(prev => ({...prev, [key]: !prev[key]}));
+                break;
+        }
+    };
+
+    
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" />
