@@ -19,13 +19,94 @@ function Busses() {
     const [isLoading, setIsLoading] = useState(false);
     const [filterModalVisible, setFilterModalVisible] = useState(false);
     const [search, setSearch] = useState("");
+    const [busRoutes, setBusRoutes] = useState([]);
+        // {
+        //     routeNum: "123",
+        //     routeName: "Downtown Express",
+        //     dropdownOn: false, 
+        //     directions: [
+        //         {
+        //        
+        //             dirName: "Northbound",
+        //             dropdownOn: false,
+        //             stops: [
+        //                 {
+        //                     stopId: "1234",
+        //                     stopName: "Main St Station",
+        //                     dropdownOn: false,
+        //                     predictions: []
+        //                 },
+        //                 // ... more stops
+        //             ]
+        //         },
+        //         // ... other direction
+        //     ]
+        // }
 
     useEffect(() => {
         const fetchBusRoutes = async () => {
+            setIsLoading(true);
+            try{
+                const routesResponse = await axios.get(`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${EXPO_PUBLIC_CTA_BUS_API_KEY}`)
+                console.log("Raw Routes: ", routesResponse.data)
+                const routes = routesResponse.data.map(route => ({
+                    routeName: route.rtnm,
+                    routeNum: rt,
+                    dropdownOn: false,
+                    directions: [],
+                    
+                }));
 
+                const directionsAndRoutes = await Promise.all(
+                    routes.map(async (route) => {
+                        const directionResponse = await axios.get(`http://www.ctabustracker.com/bustime/api/v2/getdirections?key=${EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}`)
+                        
+                        // route.directions = directionResponse.data.map(direction => ({
+                        //     directionName: direction.dir,
+                        //     dropdownOn: false,
+                        //     stops: [],
+                        // }))
+
+                        const directions = await Promise.all(
+                            directionResponse.data.map(async (direction) => {
+                                const stopsResponse = await axios.get(
+                                    `http://www.ctabustracker.com/bustime/api/v2/getstops?key=${EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&dir=${direction.dir}`
+                                )
+
+                                return {
+                                    dirName: direction.dir,
+                                    dropdownOn: false,
+                                    stops: stopsResponse.data.map(stop => ({
+                                        stopId: stop.stpid,
+                                        stopName: stop.stpnm,
+                                        latitude: stop.lat,
+                                        longitude: stop.lon,
+                                        predictions: [],
+                                        dropdownOn: false                                      
+                                    }))
+                                }
+                            })
+                        )
+                        return{
+                            ...route,
+                            directions: directions
+                        }
+                    })
+                )
+                
+            } catch(error){
+                console.error('Error fetching bus routes: ',  error)
+            } finally{
+                setIsLoading(false);
+            }
         }
+        setBusRoutes(directionsAndRoutes);
         fetchBusRoutes();
     }, []);
+
+    const fetchPredictions = async (routeNum, stop) => {
+        //Add logic for fetching predictions and placing into stop.predictions
+    }
 
     const toggleFilterModal = () => {
         setFilterModalVisible(!filterModalVisible)
