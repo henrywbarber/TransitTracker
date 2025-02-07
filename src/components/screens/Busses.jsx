@@ -53,7 +53,7 @@ function Busses() {
                 const routesResponse = await axios.get(`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`)
                 
                 //console.log('Raw API Response:', routesResponse); // Log the full response
-                console.log('Response Data:', routesResponse.data); // Log just the data
+                //console.log('Response Data:', routesResponse.data["bustime-response"]); // Log just the data
                 const routes = routesResponse.data["bustime-response"].routes.map(route => ({
                     routeName: route.rtnm,
                     routeNum: route.rt,
@@ -104,13 +104,17 @@ function Busses() {
                 console.error('Error fetching bus routes: ',  error)
             } finally{
                 setIsLoading(false);
-                console.log(busRoutes)
+                //console.log(busRoutes)
             }
         }
         
         fetchBusRoutes();
        
     }, []);
+
+    useEffect(() => {
+        busRoutes.map(route => console.log("Stop", route.directions.stops))
+      }, [busRoutes]);
 
     const fetchPredictions = async (routeNum, stop) => {
         //Add logic for fetching predictions and placing into stop.predictions
@@ -142,6 +146,78 @@ function Busses() {
         }
     };
 
+    const renderPredictions = (predictions) => (
+        predictions && predictions.length > 0 ? (
+            predictions.map((p, index) => (
+                <View key={index} style={{marginBottom:'5'}}>
+                    <Text>{p.destination}: {p.timeLeft}</Text>
+                </View>
+            ))
+        )
+        : (
+            <Text style={styles.noPredictions}>No Predictions Available</Text>
+        )
+    )
+
+    const renderRoutes = ({ item: route }) => (
+        <View style={styles.routeContainer}>
+            <TouchableOpacity
+                style={styles.routeHeader}
+                onPress={()=> toggleExpand('route', route.routeNum)}
+            >
+                <Text style={{fontWeight: 'bold', fontSize: '16'}}>
+                    {route.routeNum} - {route.routeName}
+                </Text>
+                <Ionicons
+                    name ={expandedRoutes[route.routeNum] ? 'chevron-down' : 'chevron-forward'}
+                    size={24}
+                />
+            </TouchableOpacity>
+
+            {expandedRoutes[route.routeNum] && route.directions.map(direction => (
+                <View key={direction.dirName} style={{paddingLeft:'15'}}>
+                    <TouchableOpacity
+                        style={styles.directionHeader}
+                        onPress={()=> toggleExpand('direction', `${route.routeNum}-${direction.dirName}`)}
+                    >
+                        <Text style={{fontSize:'14'}}>{direction.dirName}</Text>
+                        <Ionicons
+                            name={expandedDirs[`${route.routeNum}-${direction.dirName}`] ? 'chevron-down': 'chevron-forward'}
+                            size={20}
+                        />
+                    </TouchableOpacity>
+
+                    {expandedDirs[`${route.routeNum}${direction.dirName}`] && 
+                        direction.stops.map(stop => (
+                            <View key={stop.stopId} style={{paddingLeft:'30'}}>
+                                <TouchableOpacity
+                                    style={styles.stopHeader}
+                                    onPress={()=>{
+                                        toggleExpand('stop', `${route.routeNum}-${direction.dirName}-${stop.stopId}`)
+                                        fetchPredictions(route.routeNum, stop);
+                                    }}
+                                >
+                                    <Text style={{fontSize:'12'}}>{stop.stopName}</Text>
+                                    <Ionicons
+                                        name={expandedStops[`${route.routeNum}-${direction.dirName}-${stop.stopId}`] ? 
+                                            'chevron-down' : 'chevron-forward'}
+                                        size={18}
+                                    />
+                                </TouchableOpacity>
+
+                                {expandedStops[`${route.routeNum}-${direction.dirName}-${stop.stopId}`] && (
+                                    <View style={styles.predictionsContainer}>
+                                        {renderPredictions(stop.predictions)}
+                                    </View>
+                                )}
+                            </View>
+                        ))
+                    }
+                    </View>
+            ))}
+        </View>
+    );
+
     
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -171,10 +247,16 @@ function Busses() {
                                 autoComplete=""
                             />
                         </View>
+                        <FlatList
+                            data={busRoutes}
+                            renderItem={renderRoutes}
+                            keyExtractor={(route) => route.routeNum}
+                            style={{backgroundColor:'#f4f4f4'}}
+                        />
                     </>
                 )}
             </View>
-            <Modal
+            {/*<Modal
             animationType="slide"
             transparent={true}
             visible={filterModalVisible}
@@ -193,7 +275,7 @@ function Busses() {
                     </View>
                 </View>
                 </View>
-            </Modal>
+            </Modal>*/}
         </SafeAreaView>
     );
 }
@@ -203,6 +285,36 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f4f4f4',
     },
+    predictionsContainer: {
+        padding: 10,
+        backgroundColor: '#f9f9f9',
+    },
+    stopHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    directionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    routeContainer: {
+        backgroundColor: 'white',
+        marginBottom: 8,
+        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+      },
     container: {
         flex: 1,
         padding: 16,
