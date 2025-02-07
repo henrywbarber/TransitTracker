@@ -47,11 +47,13 @@ function Busses() {
         const fetchBusRoutes = async () => {
             setIsLoading(true);
             try{
-                const routesResponse = await axios.get(`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${EXPO_PUBLIC_CTA_BUS_API_KEY}`)
-                console.log("Raw Routes: ", routesResponse.data)
-                const routes = routesResponse.data.map(route => ({
+                const routesResponse = await axios.get(`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`)
+                
+                //console.log('Raw API Response:', routesResponse); // Log the full response
+                console.log('Response Data:', routesResponse.data); // Log just the data
+                const routes = routesResponse.data["bustime-response"].routes.map(route => ({
                     routeName: route.rtnm,
-                    routeNum: rt,
+                    routeNum: route.rt,
                     dropdownOn: false,
                     directions: [],
                     
@@ -59,7 +61,7 @@ function Busses() {
 
                 const directionsAndRoutes = await Promise.all(
                     routes.map(async (route) => {
-                        const directionResponse = await axios.get(`http://www.ctabustracker.com/bustime/api/v2/getdirections?key=${EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}`)
+                        const directionResponse = await axios.get(`http://www.ctabustracker.com/bustime/api/v2/getdirections?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&format=json`)
                         
                         // route.directions = directionResponse.data.map(direction => ({
                         //     directionName: direction.dir,
@@ -68,15 +70,15 @@ function Busses() {
                         // }))
 
                         const directions = await Promise.all(
-                            directionResponse.data.map(async (direction) => {
+                            directionResponse.data["bustime-response"].directions.map(async (direction) => {
                                 const stopsResponse = await axios.get(
-                                    `http://www.ctabustracker.com/bustime/api/v2/getstops?key=${EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&dir=${direction.dir}`
+                                    `http://www.ctabustracker.com/bustime/api/v2/getstops?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&dir=${direction.dir}&format=json`
                                 )
 
                                 return {
                                     dirName: direction.dir,
                                     dropdownOn: false,
-                                    stops: stopsResponse.data.map(stop => ({
+                                    stops: stopsResponse.data["bustime-response"].stops.map(stop => ({
                                         stopId: stop.stpid,
                                         stopName: stop.stpnm,
                                         latitude: stop.lat,
@@ -93,15 +95,18 @@ function Busses() {
                         }
                     })
                 )
-                
+                console.log(directionsAndRoutes)
+                setBusRoutes(directionsAndRoutes);
             } catch(error){
                 console.error('Error fetching bus routes: ',  error)
             } finally{
                 setIsLoading(false);
+                console.log(busRoutes)
             }
         }
-        setBusRoutes(directionsAndRoutes);
+        
         fetchBusRoutes();
+       
     }, []);
 
     const fetchPredictions = async (routeNum, stop) => {
