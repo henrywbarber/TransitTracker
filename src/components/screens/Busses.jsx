@@ -20,6 +20,7 @@ function Busses() {
     const [filterModalVisible, setFilterModalVisible] = useState(false);
     const [search, setSearch] = useState("");
     const [busRoutes, setBusRoutes] = useState([]);
+    //The expanded elements tell us what is currently dropped down
     const [expandedRoutes, setExpandedRoutes] = useState({});
     const [expandedDirs, setExpandedDirs] = useState({});
     const [expandedStops, setExpandedStops] = useState({});
@@ -77,7 +78,7 @@ function Busses() {
                                 const stopsResponse = await axios.get(
                                     `http://www.ctabustracker.com/bustime/api/v2/getstops?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&dir=${direction.dir}&format=json`
                                 )
-
+                                //console.log(stopsResponse.data["bustime-response"])
                                 return {
                                     dirName: direction.dir,
                                     dropdownOn: false,
@@ -98,7 +99,7 @@ function Busses() {
                         }
                     })
                 )
-                console.log(directionsAndRoutes)
+                //console.log(directionsAndRoutes)
                 setBusRoutes(directionsAndRoutes);
             } catch(error){
                 console.error('Error fetching bus routes: ',  error)
@@ -112,16 +113,84 @@ function Busses() {
        
     }, []);
 
-    useEffect(() => {
-        busRoutes.map(route => console.log("Stop", route.directions.stops))
-      }, [busRoutes]);
+    // useEffect(() => {
+    //     busRoutes.map(route => console.log("Stop", route.directions.stops))
+    //   }, [busRoutes]);
 
     const fetchPredictions = async (routeNum, stop) => {
+        //console.log(stop.stopId)
         //Add logic for fetching predictions and placing into stop.predictions
+        try{
+            const predResponse = await axios.get(
+                `http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNum}&stpid=${stop.stopId}&format=json`)
+            //console.log(predResponse.data)
+            const predictions = predResponse.data["bustime-response"].prd ? predResponse.data["bustime-response"].prd.map(pred =>({
+                direction: pred.rtdir,
+                type: pred.typ,
+                predictedTime: pred.prdtm,
+                delay: pred.dly,
+                timeInMinutes: pred.prdctdn,
+                destination: pred.des
+            }))
+            :
+            [];
+
+            setBusRoutes(prevRoutes => {
+                return prevRoutes.map(route => {
+                    if(route.routeNum === routeNum){
+                        return {
+                            ...route,
+                            directions: route.directions.map(dir => ({
+                                ...dir,
+                                stops: dir.stops.map(s =>
+                                    s.stopId === stop.stopId ? {...s, predictions} : s
+                                )
+                            }))
+                        }
+                    }
+                    return route;
+                })
+            })
+        } catch(e){
+            console.error('Error fetching predictions: ', e)
+            setBusRoutes(prevRoutes => {
+                return prevRoutes.map(route => {
+                    if (route.routeNum === routeNum) {
+                        return {
+                            ...route,
+                            directions: route.directions.map(dir => ({
+                                ...dir,
+                                stops: dir.stops.map(s => 
+                                    s.stopId === stop.stopId 
+                                        ? { ...s, predictions: [], error: 'Failed to load predictions' }
+                                        : s
+                                )
+                            }))
+                        };
+                    }
+                    return route;
+                });
+            });
+        }
     }
 
     const toggleFilterModal = () => {
         setFilterModalVisible(!filterModalVisible)
+    }
+
+    const getFormattedTime = (time) => {
+        const [, hoursMins] = time.split(" ");
+        if (!hoursMins) {
+            throw new Error("xpected 'YYYYMMDD HH:MM'");
+        }
+
+        const [hourStr, minutes] = hoursMins.split(":");
+        let hours = parseInt(hourStr, 10);
+        const period = hours >= 12 ? "PM" : "AM";
+
+        hours = hours % 12 || 12;
+
+        return `${hours}:${minutes} ${period}`
     }
 
     const applyFilters = () => {
@@ -133,6 +202,8 @@ function Busses() {
     };
 
     const toggleExpand = (type, key) => {
+
+        //TODO: Make it so closing a route dropdown will also close it's sub directions and sub stops
         switch (type){
             case 'route':
                 setExpandedRoutes(prev => ({...prev, [key]: !prev[key]}));
@@ -150,7 +221,7 @@ function Busses() {
         predictions && predictions.length > 0 ? (
             predictions.map((p, index) => (
                 <View key={index} style={{marginBottom:'5'}}>
-                    <Text>{p.destination}: {p.timeLeft}</Text>
+                    <Text>{p.destination}: {getFormattedTime(p.predictedTime)} - {p.type === 'A' ? 'Arrival' : 'Departure'} </Text>
                 </View>
             ))
         )
@@ -187,7 +258,7 @@ function Busses() {
                         />
                     </TouchableOpacity>
 
-                    {expandedDirs[`${route.routeNum}${direction.dirName}`] && 
+                    {expandedDirs[`${route.routeNum}-${direction.dirName}`] && 
                         direction.stops.map(stop => (
                             <View key={stop.stopId} style={{paddingLeft:'30'}}>
                                 <TouchableOpacity
