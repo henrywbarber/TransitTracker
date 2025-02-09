@@ -231,9 +231,9 @@ function Busses() {
     )
 
     const renderRoutes = ({ item: route }) => (
-        <View style={styles.routeContainer}>
+        <View >
             <TouchableOpacity
-                style={styles.routeHeader}
+                style={styles.sectionHeader}
                 onPress={()=> toggleExpand('route', route.routeNum)}
             >
                 <Text style={{fontWeight: 'bold', fontSize: '16'}}>
