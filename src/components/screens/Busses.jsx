@@ -251,7 +251,7 @@ function Busses() {
                         style={styles.directionHeader}
                         onPress={()=> toggleExpand('direction', `${route.routeNum}-${direction.dirName}`)}
                     >
-                        <Text style={{fontSize:'14'}}>{direction.dirName}</Text>
+                        <Text style={{fontSize:'14', fontWeight: 'bold'}}>{direction.dirName}</Text>
                         <Ionicons
                             name={expandedDirs[`${route.routeNum}-${direction.dirName}`] ? 'chevron-down': 'chevron-forward'}
                             size={20}
@@ -372,9 +372,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        backgroundColor: '#fff',
         padding: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderRadius: 8,
+        marginBottom: 8,
+        borderLeftWidth: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     routeContainer: {
         backgroundColor: 'white',
