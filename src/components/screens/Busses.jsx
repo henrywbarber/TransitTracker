@@ -219,14 +219,46 @@ function Busses() {
 
     const renderPredictions = (predictions) => (
         predictions && predictions.length > 0 ? (
-            predictions.map((p, index) => (
-                <View key={index} style={{marginBottom:'5'}}>
-                    <Text>{p.destination}: {getFormattedTime(p.predictedTime)} - {p.type === 'A' ? 'Arrival' : 'Departure'} </Text>
+            <View style={styles.tableContainer}>
+                <View style={styles.tableRow}>
+                    <View styles={[styles.tableCell, styles.tableHeader, {flex:2}]}>
+                        <Text style={styles.tableHeaderText}>Destination</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.tableHeader, { flex: 1 }]}>
+                        <Text style={styles.tableHeaderText}>Time</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.tableHeader, { flex: 1 }]}>
+                        <Text style={styles.tableHeaderText}>Type</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.tableHeader, { flex: 1 }]}>
+                        <Text style={styles.tableHeaderText}>Status</Text>
+                    </View>
                 </View>
-            ))
-        )
-        : (
-            <Text style={styles.noPredictions}>No Predictions Available</Text>
+            
+
+            {predictions.map((p, index) => (
+                <View key={index} style={[styles.tableRow]}>
+                    <View style={[styles.tableCell, {flex: 2}]}>
+                        <Text style={styles.tableCellText} numberOfLines={1}>{p.destination}</Text>
+                    </View>
+                    <View style={[styles.tableCell, { flex: 1 }]}>
+                        <Text style={styles.tableCellText}>{getFormattedTime(p.predictedTime)}</Text>
+                    </View>
+                    <View style={[styles.tableCell, { flex: 1 }]}>
+                        <Text style={styles.tableCellText}>{p.type === 'A' ? 'Arrival' : 'Departure'}</Text>
+                    </View>
+                    <View style={[styles.tableCell, { flex: 1 }]}>
+                        <Text style={[styles.tableCellText, p.delay ? styles.delayedText : styles.onTimeText]}>
+                            {p.delay ? 'Delayed' : 'On Time'}
+                        </Text>
+                    </View>
+                </View>
+            ))}
+            </View>
+        ) : (
+            <View style={styles.noPredictionsContainer}>
+                <Text style={styles.noPredictions}>No Predictions Available</Text>
+            </View>
         )
     )
 
@@ -352,13 +384,65 @@ function Busses() {
 }
 
 const styles = StyleSheet.create({
+    tableContainer: {
+        backgroundColor: "#fff",
+        overflow: "hidden",
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    tableCell: {
+        padding: 12,
+        justifyContent: 'center',
+    },
+    tableHeader: {
+        backgroundColor: "#f8f9fa",
+        borderBottomWidth: 2,
+        borderBottomColor: "#dee2e6",
+        paddingTop: 12,
+    },
+    tableHeaderText: {
+        fontWeight: 'bold',
+        color: '#495057',
+        fontSize: 14,
+    },
+    tableCellText: {
+        fontSize: 14,
+        color: '#212529',
+        flexShrink: 1,
+    },
+    delayedText: {
+        color: '#dc3545',
+        fontWeight: 'bold',
+    },
+    onTimeText: {
+        color: '#28a745',
+        fontWeight: 'bold',
+    },
+    noPredictionsContainer: {
+        padding: 16,
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        marginTop: 8,
+        alignItems: 'center',
+    },
+    noPredictions: {
+        color: '#6c757d',
+        fontSize: 14,
+    },
     safeArea: {
         flex: 1,
         backgroundColor: '#f4f4f4',
     },
     predictionsContainer: {
-        padding: 10,
-        backgroundColor: '#f9f9f9',
+        backgroundColor: "#fff",
+        borderBottomLeftRadius: 8,
+        borderBottomRightRadius: 8,
+        overflow: "hidden",
+        marginBottom: 16,
+        
     },
     stopHeader: {
         flexDirection: 'row',
@@ -367,8 +451,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         padding: 12,
         borderRadius: 8,
-        marginBottom: 8,
+        marginBottom: 0, // Changed from 8 to 0 to connect with table
         borderLeftWidth: 6,
+        borderLeftColor: '#000',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
