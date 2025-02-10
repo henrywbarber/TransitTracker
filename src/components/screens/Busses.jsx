@@ -219,14 +219,46 @@ function Busses() {
 
     const renderPredictions = (predictions) => (
         predictions && predictions.length > 0 ? (
-            predictions.map((p, index) => (
-                <View key={index} style={{marginBottom:'5'}}>
-                    <Text>{p.destination}: {getFormattedTime(p.predictedTime)} - {p.type === 'A' ? 'Arrival' : 'Departure'} </Text>
+            <View style={styles.tableContainer}>
+                <View style={styles.tableHeaderContainer}>
+                    <View styles={[styles.tableColumn, {flex:2}]}>
+                        <Text style={styles.tableHeaderText}>Destination</Text>
+                    </View>
+                    <View style={[styles.tableColumn, { flex: 1 }]}>
+                        <Text style={styles.tableHeaderText}>Time</Text>
+                    </View>
+                    <View style={[styles.tableColumn, { flex: 1 }]}>
+                        <Text style={styles.tableHeaderText}>Type</Text>
+                    </View>
+                    <View style={[styles.tableColumn, { flex: 1 }]}>
+                        <Text style={styles.tableHeaderText}>Status</Text>
+                    </View>
                 </View>
-            ))
-        )
-        : (
-            <Text style={styles.noPredictions}>No Predictions Available</Text>
+            
+
+            {predictions.map((p, index) => (
+                <View key={index} style={[styles.tableRow]}>
+                    <View style={[styles.tableColumn]}>
+                        <Text style={styles.tableCellText} numberOfLines={1}>{p.destination}</Text>
+                    </View>
+                    <View style={[styles.tableColumn]}>
+                        <Text style={styles.tableCellText}>{getFormattedTime(p.predictedTime)}</Text>
+                    </View>
+                    <View style={[styles.tableColumn]}>
+                        <Text style={styles.tableCellText}>{p.type === 'A' ? 'Arrival' : 'Departure'}</Text>
+                    </View>
+                    <View style={[styles.tableColumn]}>
+                        <Text style={[styles.tableCellText, p.delay ? styles.delayedText : styles.onTimeText]}>
+                            {p.delay ? 'Delayed' : 'On Time'}
+                        </Text>
+                    </View>
+                </View>
+            ))}
+            </View>
+        ) : (
+            <View style={styles.noPredictionsContainer}>
+                <Text style={styles.noPredictions}>No Predictions Available</Text>
+            </View>
         )
     )
 
@@ -262,25 +294,27 @@ function Busses() {
                         direction.stops.map(stop => (
                             <View key={stop.stopId} style={{paddingLeft:'30'}}>
                                 <TouchableOpacity
-                                    style={styles.stopHeader}
+                                    style={styles.stopContainer}
                                     onPress={()=>{
                                         toggleExpand('stop', `${route.routeNum}-${direction.dirName}-${stop.stopId}`)
                                         fetchPredictions(route.routeNum, stop);
                                     }}
                                 >
-                                    <Text style={{fontSize:'12'}}>{stop.stopName}</Text>
-                                    <Ionicons
-                                        name={expandedStops[`${route.routeNum}-${direction.dirName}-${stop.stopId}`] ? 
-                                            'chevron-down' : 'chevron-forward'}
-                                        size={18}
-                                    />
-                                </TouchableOpacity>
-
-                                {expandedStops[`${route.routeNum}-${direction.dirName}-${stop.stopId}`] && (
+                                    <View style={styles.stopHeader}>
+                                        <Text style={[styles.stopText, expandedStops[`${route.routeNum}-${direction.dirName}-${stop.stopId}`] && styles.boldText]}>{stop.stopName}</Text>
+                                        <Ionicons
+                                            name={expandedStops[`${route.routeNum}-${direction.dirName}-${stop.stopId}`] ? 
+                                                'chevron-down' : 'chevron-forward'}
+                                            size={18}
+                                        />
+                                    </View>
+                                    {expandedStops[`${route.routeNum}-${direction.dirName}-${stop.stopId}`] && (
                                     <View style={styles.predictionsContainer}>
                                         {renderPredictions(stop.predictions)}
                                     </View>
                                 )}
+                                </TouchableOpacity>
+
                             </View>
                         ))
                     }
@@ -352,27 +386,106 @@ function Busses() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: '#f4f4f4',
+    tableContainer: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: 8,
+        overflow: 'hidden',
+        marginTop: 8,
     },
-    predictionsContainer: {
-        padding: 10,
-    },
-    stopHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#fff',
+    expandedStopName: {
+        fontSize: 16,
+        fontWeight: 'bold',
         padding: 12,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#dee2e6',
+    },
+    stopContainer: {
+        backgroundColor: '#fff',
         borderRadius: 8,
         marginBottom: 8,
+        overflow: 'hidden',
         borderLeftWidth: 6,
+        borderLeftColor: '#000',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
+    },
+    stopText: {
+        fontSize: 14,
+        color: '#212529',
+    },
+
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+        padding: 8,
+    },
+    tableCell: {
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+    },
+    tableHeaderContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#f8f9fa',
+        borderBottomWidth: 1,
+        borderBottomColor: '#dee2e6',
+        paddingVertical: 8,
+    },
+    tableHeaderText: {
+        fontWeight: '600',
+        color: '#495057',
+        fontSize: 14,
+    },
+    tableColumn: {
+        flex: 1,
+        paddingHorizontal: 12,
+        justifyContent: 'flex-start', // Align text to left
+    },
+    tableCellText: {
+        fontSize: 14,
+        color: '#212529',
+        flexShrink: 1,
+    },
+    headerCell: {
+        paddingHorizontal: 12,
+    },
+    delayedText: {
+        color: '#dc3545',
+        fontWeight: 'bold',
+    },
+    onTimeText: {
+        color: '#28a745',
+        fontWeight: 'bold',
+    },
+    noPredictionsContainer: {
+        padding: 16,
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        marginTop: 8,
+        alignItems: 'center',
+    },
+    noPredictions: {
+        color: '#6c757d',
+        fontSize: 14,
+    },
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#f4f4f4',
+    },
+    predictionsContainer: {
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
+    stopHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 12,
+        backgroundColor: '#fff',
     },
     directionHeader: {
         flexDirection: 'row',
@@ -562,8 +675,10 @@ const styles = StyleSheet.create({
         borderBottomColor: "#ccc",
     },
     predictionRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#dee2e6',
         paddingVertical: 8,
     },
     predictionText: {
