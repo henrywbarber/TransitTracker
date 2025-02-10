@@ -358,7 +358,6 @@ const styles = StyleSheet.create({
     },
     predictionsContainer: {
         padding: 10,
-        backgroundColor: '#f9f9f9',
     },
     stopHeader: {
         flexDirection: 'row',
@@ -554,6 +553,24 @@ const styles = StyleSheet.create({
         marginTop: 16,
         fontSize: 18,
         color: '#666',
+    },
+    predictionTableHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: "#ccc",
+    },
+    predictionRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+    },
+    predictionText: {
+        fontSize: 14,
+        color: "#333",
+        flex: 1,
+        textAlign: "center",
     },
 });
 
