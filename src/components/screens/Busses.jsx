@@ -221,16 +221,16 @@ function Busses() {
         predictions && predictions.length > 0 ? (
             <View style={styles.tableContainer}>
                 <View style={styles.tableHeaderContainer}>
-                    <View styles={[styles.tableColumn, {flex:2}]}>
+                    <View style={[styles.tableColumn, {width: '30%'}]}>
                         <Text style={styles.tableHeaderText}>Destination</Text>
                     </View>
-                    <View style={[styles.tableColumn, { flex: 1 }]}>
+                    <View style={[styles.tableColumn, {width: '20%'}]}>
                         <Text style={styles.tableHeaderText}>Time</Text>
                     </View>
-                    <View style={[styles.tableColumn, { flex: 1 }]}>
+                    <View style={[styles.tableColumn, {width: '25%'}]}>
                         <Text style={styles.tableHeaderText}>Type</Text>
                     </View>
-                    <View style={[styles.tableColumn, { flex: 1 }]}>
+                    <View style={[styles.tableColumn, {width: '25%'}]}>
                         <Text style={styles.tableHeaderText}>Status</Text>
                     </View>
                 </View>
@@ -238,16 +238,18 @@ function Busses() {
 
             {predictions.map((p, index) => (
                 <View key={index} style={[styles.tableRow]}>
-                    <View style={[styles.tableColumn]}>
-                        <Text style={styles.tableCellText} numberOfLines={1}>{p.destination}</Text>
+                    <View style={[styles.tableColumn, {width:'30%'}]}>
+                        <Text style={[styles.tableCellText, styles.destinationText]} numberOfLines={2}>
+                            {p.destination}
+                        </Text>
                     </View>
-                    <View style={[styles.tableColumn]}>
+                    <View style={[styles.tableColumn, {width:'20%'}]}>
                         <Text style={styles.tableCellText}>{getFormattedTime(p.predictedTime)}</Text>
                     </View>
-                    <View style={[styles.tableColumn]}>
+                    <View style={[styles.tableColumn,{width:'25%'}]}>
                         <Text style={styles.tableCellText}>{p.type === 'A' ? 'Arrival' : 'Departure'}</Text>
                     </View>
-                    <View style={[styles.tableColumn]}>
+                    <View style={[styles.tableColumn, {width:'25%'}]}>
                         <Text style={[styles.tableCellText, p.delay ? styles.delayedText : styles.onTimeText]}>
                             {p.delay ? 'Delayed' : 'On Time'}
                         </Text>
@@ -278,7 +280,7 @@ function Busses() {
             </TouchableOpacity>
 
             {expandedRoutes[route.routeNum] && route.directions.map(direction => (
-                <View key={direction.dirName} style={{paddingLeft:'15'}}>
+                <View key={direction.dirName} style={{paddingLeft:'10'}}>
                     <TouchableOpacity
                         style={styles.directionHeader}
                         onPress={()=> toggleExpand('direction', `${route.routeNum}-${direction.dirName}`)}
@@ -292,7 +294,7 @@ function Busses() {
 
                     {expandedDirs[`${route.routeNum}-${direction.dirName}`] && 
                         direction.stops.map(stop => (
-                            <View key={stop.stopId} style={{paddingLeft:'30'}}>
+                            <View key={stop.stopId} style={{paddingLeft:'20'}}>
                                 <TouchableOpacity
                                     style={styles.stopContainer}
                                     onPress={()=>{
@@ -423,32 +425,39 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
         padding: 8,
+        minHeight:44,
+        alignItems:'stretch'
     },
     tableCell: {
         paddingVertical: 12,
         paddingHorizontal: 12,
+        textAlign:'center',
     },
     tableHeaderContainer: {
         flexDirection: 'row',
         backgroundColor: '#f8f9fa',
         borderBottomWidth: 1,
         borderBottomColor: '#dee2e6',
-        paddingVertical: 8,
+        paddingVertical: 12,
     },
     tableHeaderText: {
         fontWeight: '600',
         color: '#495057',
         fontSize: 14,
+        textAlign: 'center',
     },
     tableColumn: {
-        flex: 1,
-        paddingHorizontal: 12,
-        justifyContent: 'flex-start', // Align text to left
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerColumn: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     tableCellText: {
+        color: '#495057',
         fontSize: 14,
-        color: '#212529',
-        flexShrink: 1,
+        textAlign: 'center',
     },
     headerCell: {
         paddingHorizontal: 12,
@@ -590,73 +599,6 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 8,
     },
-    clearFiltersButton: {
-        backgroundColor: '#ff4444',
-        padding: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-    },
-    clearFiltersText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContent: {
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 10,
-        width: '80%',
-        maxHeight: '80%',
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 16,
-        color: '#333',
-    },
-    filterItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    filterItemText: {
-        fontSize: 16,
-        color: '#333',
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 20,
-    },
-    modalButton: {
-        flex: 1,
-        backgroundColor: '#007AFF',
-        padding: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginHorizontal: 4,
-    },
-    cancelButton: {
-        backgroundColor: '#ff4444',
-    },
-    modalButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -686,6 +628,12 @@ const styles = StyleSheet.create({
         color: "#333",
         flex: 1,
         textAlign: "center",
+    },
+    destinationText: {
+        flexWrap: 'wrap',
+        flexShrink: 1,
+        textAlign: 'center',
+        paddingHorizontal:4
     },
 });
 
