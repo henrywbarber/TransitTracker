@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	View,
 	Text,
@@ -8,17 +8,16 @@ import {
 	ActivityIndicator,
 	SectionList,
 	SafeAreaView,
-	StatusBar,
-	FlatList
+	StatusBar
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome } from "@expo/vector-icons";
 
 function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [routes, setRoutes] = useState([]);
-	const [predictions, setPredictions] = useState({});
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
@@ -26,6 +25,11 @@ function Busses() {
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
 				);
+
+				// console.log(
+				//   "First 3 Routes:",
+				//   routesResponse.data["bustime-response"].routes.slice(0, 3)
+				// );
 
 				const routesData = routesResponse.data["bustime-response"].routes.map(
 					route => ({
@@ -89,36 +93,62 @@ function Busses() {
 		fetchRoutes();
 	}, []);
 
-	const fetchStopPredictions = useCallback(
-		async (stopId, routeNum, direction) => {
-			try {
-				const response = await axios.get(
-					`http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNum}&stpid=${stopId}&format=json`
-				);
+	const fetchStopPredictions = async (stopId, routeNum, direction) => {
+		try {
+			const response = await axios.get(
+				`http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNum}&stpid=${stopId}&format=json`
+			);
 
-				const predictions = response.data["bustime-response"].prd
-					? response.data["bustime-response"].prd
-					: [];
+			const predictions = response.data["bustime-response"].prd
+				? response.data["bustime-response"].prd
+				: [];
 
-				const filteredPredictions = predictions.filter(
-					prediction => prediction.rtdir === direction
-				);
+			console.log(predictions);
 
-				setPredictions(prev => ({
-					...prev,
-					[`${routeNum}-${stopId}-${direction}`]: filteredPredictions
-				}));
-			} catch (error) {
-				console.error(
-					`Error fetching predictions for stopId ${stopId} routeNum ${routeNum} direction ${direction}:`,
-					error
-				);
-			}
-		},
-		[]
-	);
+			const filteredPredictions = predictions.filter(
+				prediction => prediction.rtdir === direction
+			);
 
-	const toggleRouteDropdown = useCallback(routeNum => {
+			setRoutes(prevRoutes =>
+				prevRoutes.map(route => {
+					if (route.routeNum === routeNum) {
+						const stopName = Object.keys(route.stops).find(name =>
+							Object.keys(route.stops[name].directions).some(
+								dir => route.stops[name].directions[dir].stopId === stopId
+							)
+						);
+
+						if (stopName) {
+							return {
+								...route,
+								stops: {
+									...route.stops,
+									[stopName]: {
+										...route.stops[stopName],
+										directions: {
+											...route.stops[stopName].directions,
+											[direction]: {
+												...route.stops[stopName].directions[direction],
+												predictions: filteredPredictions
+											}
+										}
+									}
+								}
+							};
+						}
+					}
+					return route;
+				})
+			);
+		} catch (error) {
+			console.error(
+				`Error fetching predictions for stopId ${stopId} routeNum ${routeNum} direction ${direction}:`,
+				error
+			);
+		}
+	};
+
+	const toggleRouteDropdown = routeNum => {
 		setRoutes(prevRoutes =>
 			prevRoutes.map(route =>
 				route.routeNum === routeNum
@@ -126,145 +156,58 @@ function Busses() {
 					: route
 			)
 		);
-	}, []);
+	};
 
-	const toggleStopDropdown = useCallback(
-		(stopName, routeNum) => {
-			setRoutes(prevRoutes =>
-				prevRoutes.map(route => {
-					if (route.routeNum === routeNum) {
-						const isExpanding = !route.stops[stopName].dropdownOn;
+	const toggleStopDropdown = (stopName, routeNum) => {
+		setRoutes(prevRoutes =>
+			prevRoutes.map(route => {
+				if (route.routeNum === routeNum) {
+					const isExpanding = !route.stops[stopName].dropdownOn;
 
-						if (isExpanding) {
-							Object.entries(route.stops[stopName].directions).forEach(
-								([direction, data]) => {
-									fetchStopPredictions(data.stopId, routeNum, direction);
-								}
-							);
-						}
-
-						return {
-							...route,
-							stops: {
-								...route.stops,
-								[stopName]: {
-									...route.stops[stopName],
-									dropdownOn: isExpanding
-								}
+					if (isExpanding) {
+						Object.entries(route.stops[stopName].directions).forEach(
+							([direction, data]) => {
+								fetchStopPredictions(data.stopId, routeNum, direction);
 							}
-						};
+						);
 					}
-					return route;
-				})
-			);
-		},
-		[fetchStopPredictions]
-	);
 
-	const handleSearch = useCallback(text => {
+					return {
+						...route,
+						stops: {
+							...route.stops,
+							[stopName]: {
+								...route.stops[stopName],
+								dropdownOn: isExpanding
+							}
+						}
+					};
+				}
+				return route;
+			})
+		);
+	};
+
+	const handleSearch = text => {
 		setSearch(text);
-	}, []);
+	};
 
-	const filterStops = useCallback(
-		route => {
-			return Object.keys(route.stops).filter(stopName =>
-				stopName.toLowerCase().includes(search.toLowerCase())
-			);
-		},
-		[search]
-	);
-
-	const sections = useMemo(() => {
-		return routes.map(route => ({
-			...route,
-			data: route.dropdownOn ? filterStops(route) : [],
-			key: route.routeNum
-		}));
-	}, [routes, search, filterStops]);
-
-	const renderPredictionItem = React.memo(({ item }) => {
-		let etaTextStyle = [styles.predictionText, styles.boldText];
-		if (item.dly === "1") {
-			etaTextStyle = [...etaTextStyle, { color: "red" }];
-		} else if (item.prdctdn <= 2 || item.prdctdn === "DUE") {
-			etaTextStyle = [...etaTextStyle, { color: "green" }];
-		}
-
-		return (
-			<View style={styles.predictionRow}>
-				<Text style={styles.predictionText}>{item.vid}</Text>
-				<Text style={styles.predictionText}>{item.des}</Text>
-				<Text style={etaTextStyle}>
-					{item.prdctdn <= 2 || item.prdctdn === "DUE"
-						? "DUE"
-						: `${item.prdctdn} min`}
-				</Text>
-			</View>
-		);
-	});
-
-	const renderItem = ({ item, section }) => {
-		const stopPredictions = Object.entries(section.stops[item].directions).map(
-			([direction, data]) => {
-				const key = `${section.routeNum}-${data.stopId}-${direction}`;
-				return {
-					direction,
-					predictions: predictions[key] || []
-				};
-			}
-		);
-
-		return (
-			<TouchableOpacity
-				onPress={() => toggleStopDropdown(item, section.routeNum)}
-			>
-				<View style={styles.stopCard}>
-					<View
-						style={[
-							styles.stopColorIndicator,
-							{ backgroundColor: section.routeClr }
-						]}
-					/>
-					<View style={styles.stopInfo}>
-						<Text style={styles.stopName}>{item}</Text>
-						{section.stops[item].dropdownOn && (
-							<View style={styles.expandedContent}>
-								{stopPredictions.map(({ direction, predictions }) => (
-									<View key={direction} style={{ paddingTop: 10 }}>
-										<Text style={styles.stopPredictionTitle}>{direction}</Text>
-										<View style={styles.predictionTableHeader}>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												Bus
-											</Text>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												Destination
-											</Text>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												ETA
-											</Text>
-										</View>
-										{predictions.length > 0 ? (
-											<FlatList
-												data={predictions}
-												renderItem={renderPredictionItem}
-												keyExtractor={(item, index) => `${item.vid}-${index}`}
-											/>
-										) : (
-											<Text style={[styles.predictionText, { padding: 10 }]}>
-												No predictions available.
-											</Text>
-										)}
-									</View>
-								))}
-							</View>
-						)}
-					</View>
-				</View>
-			</TouchableOpacity>
+	const filterStops = route => {
+		return Object.keys(route.stops).filter(stopName =>
+			stopName.toLowerCase().includes(search.toLowerCase())
 		);
 	};
 
 	const renderSectionHeader = ({ section }) => {
+		//   console.log("Section Summary:", {
+		//     routeNum: section.routeNum,
+		//     routeName: section.routeName,
+		//     routeClr: section.routeClr,
+		//     dropdownOn: section.dropdownOn,
+		//     directions: section.directions.slice(0, 3), // Log only the first 3 directions
+		//     stops: Object.entries(section.stops).slice(0, 3), // Log only the first 3 stops
+		//   });
+
 		return (
 			<TouchableOpacity
 				onPress={() => toggleRouteDropdown(section.routeNum)}
@@ -281,6 +224,83 @@ function Busses() {
 			</TouchableOpacity>
 		);
 	};
+
+	const renderItem = ({ item, section }) => (
+		<TouchableOpacity
+			onPress={() => toggleStopDropdown(item, section.routeNum)}
+		>
+			<View style={styles.stopCard}>
+				<View
+					style={[
+						styles.stopColorIndicator,
+						{ backgroundColor: section.routeClr }
+					]}
+				/>
+				<View style={styles.stopInfo}>
+					<Text style={styles.stopName}>{item}</Text>
+					{section.stops[item].dropdownOn && (
+						<View style={styles.expandedContent}>
+							{Object.entries(section.stops[item].directions).map(
+								([direction, data]) => (
+									<View key={direction} style={{ paddingTop: 10 }}>
+										<Text style={styles.stopPredictionTitle}>{direction}</Text>
+										<View style={styles.predictionTableHeader}>
+											<Text style={[styles.predictionText, styles.boldText]}>
+												Bus
+											</Text>
+											<Text style={[styles.predictionText, styles.boldText]}>
+												Destination
+											</Text>
+											<Text style={[styles.predictionText, styles.boldText]}>
+												ETA
+											</Text>
+										</View>
+										{data.predictions.length > 0 ? (
+											data.predictions.map((prediction, index) => {
+												let etaTextStyle = [
+													styles.predictionText,
+													styles.boldText
+												];
+												if (prediction.dly === "1") {
+													etaTextStyle = [...etaTextStyle, { color: "red" }];
+												} else if (
+													prediction.prdctdn <= 2 ||
+													prediction.prdctdn === "DUE"
+												) {
+													etaTextStyle = [...etaTextStyle, { color: "green" }];
+												}
+
+												return (
+													<View key={index} style={styles.predictionRow}>
+														<Text style={styles.predictionText}>
+															{prediction.vid}
+														</Text>
+														<Text style={styles.predictionText}>
+															{prediction.des}
+														</Text>
+														<Text style={etaTextStyle}>
+															{prediction.prdctdn <= 2 ||
+															prediction.prdctdn === "DUE"
+																? "DUE"
+																: `${prediction.prdctdn} min`}
+														</Text>
+													</View>
+												);
+											})
+										) : (
+											<Text style={[styles.predictionText, { padding: 10 }]}>
+												No predictions available.
+											</Text>
+										)}
+									</View>
+								)
+							)}
+						</View>
+					)}
+				</View>
+			</View>
+		</TouchableOpacity>
+	);
 
 	return (
 		<SafeAreaView style={styles.safeArea}>
@@ -317,7 +337,11 @@ function Busses() {
 							<Text style={styles.noMatch}>No Matching Stops</Text>
 						) : (
 							<SectionList
-								sections={sections}
+								sections={routes.map(route => ({
+									...route,
+									data: route.dropdownOn ? filterStops(route) : [],
+									key: route.routeNum
+								}))}
 								keyExtractor={(item, index) => `${item}-${index}`}
 								renderSectionHeader={renderSectionHeader}
 								renderItem={renderItem}

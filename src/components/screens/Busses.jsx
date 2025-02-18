@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
 	View,
 	Text,
@@ -12,7 +12,70 @@ import {
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
-import { FontAwesome } from "@expo/vector-icons";
+
+const PredictionRow = React.memo(({ prediction }) => {
+	const etaTextStyle = [styles.predictionText, styles.boldText];
+	if (prediction.dly === "1") {
+		etaTextStyle.push({ color: "red" });
+	} else if (prediction.prdctdn <= 2 || prediction.prdctdn === "DUE") {
+		etaTextStyle.push({ color: "green" });
+	}
+
+	return (
+		<View style={styles.predictionRow}>
+			<Text style={styles.predictionText}>{prediction.vid}</Text>
+			<Text style={styles.predictionText}>{prediction.des}</Text>
+			<Text style={etaTextStyle}>
+				{prediction.prdctdn <= 2 || prediction.prdctdn === "DUE"
+					? "DUE"
+					: `${prediction.prdctdn} min`}
+			</Text>
+		</View>
+	);
+});
+
+const StopDirections = React.memo(({ directions, stopData }) => {
+	return Object.entries(directions).map(([direction, data]) => (
+		<View key={direction} style={{ paddingTop: 10 }}>
+			<Text style={styles.stopPredictionTitle}>{direction}</Text>
+			<View style={styles.predictionTableHeader}>
+				<Text style={[styles.predictionText, styles.boldText]}>Bus</Text>
+				<Text style={[styles.predictionText, styles.boldText]}>
+					Destination
+				</Text>
+				<Text style={[styles.predictionText, styles.boldText]}>ETA</Text>
+			</View>
+			{data.predictions.length > 0 ? (
+				data.predictions.map((prediction, index) => (
+					<PredictionRow
+						key={`${prediction.vid}-${index}`}
+						prediction={prediction}
+					/>
+				))
+			) : (
+				<Text style={[styles.predictionText, { padding: 10 }]}>
+					No predictions available.
+				</Text>
+			)}
+		</View>
+	));
+});
+
+const SectionHeader = React.memo(({ section, onToggle }) => (
+	<TouchableOpacity
+		onPress={() => onToggle(section.routeNum)}
+		style={[styles.sectionHeader, { borderLeftColor: section.routeClr }]}
+	>
+		<Text style={styles.routeTitle}>
+			{section.routeNum} - {section.routeName}
+		</Text>
+		<Ionicons
+			name={section.dropdownOn ? "chevron-up" : "chevron-down"}
+			size={24}
+			color="#666"
+		/>
+	</TouchableOpacity>
+));
 
 function Busses() {
 	const [search, setSearch] = useState("");
@@ -148,7 +211,27 @@ function Busses() {
 		}
 	};
 
-	const toggleRouteDropdown = routeNum => {
+	const filterStops = useCallback(
+		route => {
+			const searchLower = search.toLowerCase();
+			return Object.keys(route.stops).filter(stopName =>
+				stopName.toLowerCase().includes(searchLower)
+			);
+		},
+		[search]
+	);
+
+	const sections = useMemo(
+		() =>
+			routes.map(route => ({
+				...route,
+				data: route.dropdownOn ? filterStops(route) : [],
+				key: route.routeNum
+			})),
+		[routes, filterStops]
+	);
+
+	const toggleRouteDropdown = useCallback(routeNum => {
 		setRoutes(prevRoutes =>
 			prevRoutes.map(route =>
 				route.routeNum === routeNum
@@ -156,9 +239,9 @@ function Busses() {
 					: route
 			)
 		);
-	};
+	}, []);
 
-	const toggleStopDropdown = (stopName, routeNum) => {
+	const toggleStopDropdown = useCallback((stopName, routeNum) => {
 		setRoutes(prevRoutes =>
 			prevRoutes.map(route => {
 				if (route.routeNum === routeNum) {
@@ -186,120 +269,42 @@ function Busses() {
 				return route;
 			})
 		);
-	};
+	}, []);
 
-	const handleSearch = text => {
-		setSearch(text);
-	};
+	const renderSectionHeader = useCallback(
+		({ section }) => (
+			<SectionHeader section={section} onToggle={toggleRouteDropdown} />
+		),
+		[toggleRouteDropdown]
+	);
 
-	const filterStops = route => {
-		return Object.keys(route.stops).filter(stopName =>
-			stopName.toLowerCase().includes(search.toLowerCase())
-		);
-	};
-
-	const renderSectionHeader = ({ section }) => {
-		//   console.log("Section Summary:", {
-		//     routeNum: section.routeNum,
-		//     routeName: section.routeName,
-		//     routeClr: section.routeClr,
-		//     dropdownOn: section.dropdownOn,
-		//     directions: section.directions.slice(0, 3), // Log only the first 3 directions
-		//     stops: Object.entries(section.stops).slice(0, 3), // Log only the first 3 stops
-		//   });
-
-		return (
+	const renderItem = useCallback(
+		({ item, section }) => (
 			<TouchableOpacity
-				onPress={() => toggleRouteDropdown(section.routeNum)}
-				style={[styles.sectionHeader, { borderLeftColor: section.routeClr }]}
+				onPress={() => toggleStopDropdown(item, section.routeNum)}
 			>
-				<Text style={styles.routeTitle}>
-					{section.routeNum} - {section.routeName}
-				</Text>
-				<Ionicons
-					name={section.dropdownOn ? "chevron-up" : "chevron-down"}
-					size={24}
-					color="#666"
-				/>
-			</TouchableOpacity>
-		);
-	};
-
-	const renderItem = ({ item, section }) => (
-		<TouchableOpacity
-			onPress={() => toggleStopDropdown(item, section.routeNum)}
-		>
-			<View style={styles.stopCard}>
-				<View
-					style={[
-						styles.stopColorIndicator,
-						{ backgroundColor: section.routeClr }
-					]}
-				/>
-				<View style={styles.stopInfo}>
-					<Text style={styles.stopName}>{item}</Text>
-					{section.stops[item].dropdownOn && (
-						<View style={styles.expandedContent}>
-							{Object.entries(section.stops[item].directions).map(
-								([direction, data]) => (
-									<View key={direction} style={{ paddingTop: 10 }}>
-										<Text style={styles.stopPredictionTitle}>{direction}</Text>
-										<View style={styles.predictionTableHeader}>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												Bus
-											</Text>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												Destination
-											</Text>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												ETA
-											</Text>
-										</View>
-										{data.predictions.length > 0 ? (
-											data.predictions.map((prediction, index) => {
-												let etaTextStyle = [
-													styles.predictionText,
-													styles.boldText
-												];
-												if (prediction.dly === "1") {
-													etaTextStyle = [...etaTextStyle, { color: "red" }];
-												} else if (
-													prediction.prdctdn <= 2 ||
-													prediction.prdctdn === "DUE"
-												) {
-													etaTextStyle = [...etaTextStyle, { color: "green" }];
-												}
-
-												return (
-													<View key={index} style={styles.predictionRow}>
-														<Text style={styles.predictionText}>
-															{prediction.vid}
-														</Text>
-														<Text style={styles.predictionText}>
-															{prediction.des}
-														</Text>
-														<Text style={etaTextStyle}>
-															{prediction.prdctdn <= 2 ||
-															prediction.prdctdn === "DUE"
-																? "DUE"
-																: `${prediction.prdctdn} min`}
-														</Text>
-													</View>
-												);
-											})
-										) : (
-											<Text style={[styles.predictionText, { padding: 10 }]}>
-												No predictions available.
-											</Text>
-										)}
-									</View>
-								)
-							)}
-						</View>
-					)}
+				<View style={styles.stopCard}>
+					<View
+						style={[
+							styles.stopColorIndicator,
+							{ backgroundColor: section.routeClr }
+						]}
+					/>
+					<View style={styles.stopInfo}>
+						<Text style={styles.stopName}>{item}</Text>
+						{section.stops[item].dropdownOn && (
+							<View style={styles.expandedContent}>
+								<StopDirections
+									directions={section.stops[item].directions}
+									stopData={section.stops[item]}
+								/>
+							</View>
+						)}
+					</View>
 				</View>
-			</View>
-		</TouchableOpacity>
+			</TouchableOpacity>
+		),
+		[toggleStopDropdown]
 	);
 
 	return (
@@ -327,7 +332,7 @@ function Busses() {
 								style={styles.searchBar}
 								placeholder="Search by Stop Name"
 								value={search}
-								onChangeText={handleSearch}
+								onChangeText={setSearch}
 								clearButtonMode="always"
 								autoComplete=""
 							/>
@@ -337,14 +342,18 @@ function Busses() {
 							<Text style={styles.noMatch}>No Matching Stops</Text>
 						) : (
 							<SectionList
-								sections={routes.map(route => ({
-									...route,
-									data: route.dropdownOn ? filterStops(route) : [],
-									key: route.routeNum
-								}))}
+								sections={sections}
 								keyExtractor={(item, index) => `${item}-${index}`}
 								renderSectionHeader={renderSectionHeader}
 								renderItem={renderItem}
+								initialNumToRender={20}
+								maxToRenderPerBatch={20}
+								windowSize={20}
+								getItemLayout={(data, index) => ({
+									length: 60,
+									offset: 60 * index,
+									index
+								})}
 							/>
 						)}
 					</>
