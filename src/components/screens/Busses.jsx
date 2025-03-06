@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PredictionRow = React.memo(({ prediction }) => {
 	const etaTextStyle = [styles.predictionText, styles.boldText];
@@ -81,6 +82,7 @@ function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [routes, setRoutes] = useState([]);
+	const [favorites, setFavorites] = useState([]);
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
@@ -154,7 +156,23 @@ function Busses() {
 		};
 
 		fetchRoutes();
+		
 	}, []);
+
+	useEffect(() => {
+		const loadFavorites = async () => {
+			try {
+				const savedFavorites = await AsyncStorage.getItem('favorites');
+				if (savedFavorites) {
+					setFavorites(JSON.parse(savedFavorites));
+				}
+			} catch (error) {
+				console.error('Error loading favorites:', error);
+			}
+		};
+
+		loadFavorites();
+	}, [])
 
 	const fetchStopPredictions = async (stopId, routeNum, direction) => {
 		try {
@@ -231,6 +249,50 @@ function Busses() {
 		[routes, filterStops]
 	);
 
+	const isFavorite = (routeNum, stopId) => {
+		const favoriteId = `${routeNum}-${stopId}`;
+		return favorites.some(fav => fav.id === favoriteId && fav.type === 'bus');
+	};
+
+	const toggleFavorite = async (stopName, stopId, route) => {
+		try {
+			//console.log(route)
+			const favoriteItem = {
+				id: `${route.routeNum}-${stopId}`, // Unique ID combining route and stop
+				name: `${route.routeName} - ${stopName}`,
+				type: 'bus',
+				color: route.routeClr, // Use the route's color
+				stopId: stopId,
+				routeNumber: route.routeNum  // Include route number for predictions
+			};
+
+			// Get current favorites
+			const savedFavorites = await AsyncStorage.getItem('favorites');
+			let tempFavs = savedFavorites ? JSON.parse(savedFavorites) : [];
+
+			// Check if already favorited
+			const isFavorited = favorites.some(
+				fav => fav.id === favoriteItem.id && fav.type === 'bus'
+			);
+
+			if (isFavorited) {
+				// Remove from favorites
+				tempFavs = tempFavs.filter(
+					fav => !(fav.id === favoriteItem.id && fav.type === 'bus')
+				);
+			} else {
+				// Add to favorites
+				tempFavs.push(favoriteItem);
+			}
+
+			// Save updated favorites
+			await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
+			setFavorites(tempFavs);
+		} catch (error) {
+			console.error('Error toggling favorite:', error);
+		}
+	};
+
 	const toggleRouteDropdown = useCallback(routeNum => {
 		setRoutes(prevRoutes =>
 			prevRoutes.map(route =>
@@ -291,7 +353,23 @@ function Busses() {
 						]}
 					/>
 					<View style={styles.stopInfo}>
-						<Text style={styles.stopName}>{item}</Text>
+						<View style={styles.stopHeader}>
+							<Text style={styles.stopName}>{item}</Text>
+							<TouchableOpacity 
+								onPress={() => toggleFavorite(
+									item, // stopName
+									section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId, // stopId
+									section // route info
+								)}
+								style={styles.favoriteButton}
+							>
+								<Ionicons 
+									name={isFavorite(section.routeNum, section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId) ? "heart" : "heart-outline"} 
+									size={24} 
+									color={isFavorite(section.routeNum, section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId) ? "red" : "#666"} 
+								/>
+							</TouchableOpacity>
+						</View>
 						{section.stops[item].dropdownOn && (
 							<View style={styles.expandedContent}>
 								<StopDirections
@@ -304,7 +382,7 @@ function Busses() {
 				</View>
 			</TouchableOpacity>
 		),
-		[toggleStopDropdown]
+		[toggleStopDropdown, favorites]
 	);
 
 	return (
@@ -494,6 +572,15 @@ const styles = StyleSheet.create({
 		marginTop: 16,
 		fontSize: 18,
 		color: "#666"
+	},
+	stopHeader: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		width: '100%'
+	},
+	favoriteButton: {
+		padding: 8,
 	}
 });
 

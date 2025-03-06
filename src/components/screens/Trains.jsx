@@ -13,10 +13,12 @@ import {
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import { FontAwesome } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function Trains() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
+	const [favorites, setFavorites] = useState([]);
 	const [stationPredictions, setStationPredictions] = useState([]);
 	const [lines, setLines] = useState([
 		{
@@ -222,6 +224,45 @@ function Trains() {
 			});
 		} catch (error) {
 			console.error(`Error fetching predictions for stopId ${stopId}:`, error);
+		}
+	};
+
+	const isFavorite = (station) => {
+		return favorites.some(
+			fav => fav.id === `${station.line_color}-${station.map_id}` && fav.type === 'train'
+		);
+	};
+
+	const toggleFavorite = async (station) => {
+		try {
+			const favoriteItem = {
+				id: `${station.line_color}-${station.map_id}`,
+				name: station.station_name,
+				type: 'train',
+				color: station.line_color,
+				stopId: station.stops[0].stop_id  // Include stopId for predictions
+			};
+			
+			const currFavorites = await AsyncStorage.getItem('favorites')
+			let tempFavs = currFavorites ? JSON.parse(currFavorites) : []
+
+			if(favorites.some(
+				fav => fav.id === `${station.line_color}-${station.map_id}` && fav.type === 'train')
+			){
+				tempFavs = tempFavs.filter(
+					fav => !(fav.id === `${station.line_color}-${station.map_id}` && fav.type === 'train')
+				)
+			}
+			else{
+				tempFavs.push(favoriteItem)
+			}
+			
+			await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs))
+			setFavorites(tempFavs);
+
+			
+		} catch (error) {
+			console.error('Error toggling favorite:', error);
 		}
 	};
 
