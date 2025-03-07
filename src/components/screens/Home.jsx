@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import axios from 'axios';
@@ -109,43 +109,89 @@ function Home() {
 
     const renderTrainPredictions = (trainPredictions) => (
         <View style={styles.predictionsContainer}>
-            {trainPredictions.map((prediction, index) => {
-                const arrivalTime = new Date(prediction.arrT);
-                const currentTime = new Date();
-                const timeDiff = Math.round((arrivalTime - currentTime) / 60000);
-                
-                return (
-                    <View key={index} style={styles.predictionRow}>
-                        <Text style={styles.predictionText}>{prediction.destNm}</Text>
-                        <Text style={[
-                            styles.predictionTime,
-                            prediction.isDly === "1" && styles.delayedText,
-                            (prediction.isApp === "1" || timeDiff <= 2) && styles.dueText
-                        ]}>
-                            {prediction.isApp === "1" || timeDiff <= 2 ? "DUE" : `${timeDiff} min`}
-                        </Text>
+            {trainPredictions.length > 0 ? (
+                <>
+                    <View style={styles.tableHeader}>
+                        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Run</Text>
+                        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Direction</Text>
+                        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
                     </View>
-                );
-            })}
+                    
+                    {trainPredictions.map((prediction, index) => {
+                        const arrivalTime = new Date(prediction.arrT);
+                        const currentTime = new Date();
+                        const timeDiff = Math.round((arrivalTime - currentTime) / 60000);
+                        const isDelayed = prediction.isDly === "1";
+                        const isDue = prediction.isApp === "1" || timeDiff <= 2;
+                        
+                        return (
+                            <View key={index} style={styles.tableRow}>
+                                <Text style={[styles.tableCell, { flex: 1 }]}>
+                                    {prediction.rn || "—"}
+                                </Text>
+                                <Text style={[styles.tableCell, { flex: 2 }]}>
+                                    {prediction.destNm}
+                                </Text>
+                                <View style={[
+                                    styles.etaContainer, 
+                                    { flex: 1, justifyContent: 'flex-end' }
+                                ]}>
+                                    <Text style={[
+                                        styles.etaText,
+                                        isDelayed && styles.delayedText,
+                                        isDue && styles.dueText
+                                    ]}>
+                                        {isDue ? "DUE" : `${timeDiff} min`}
+                                    </Text>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </>
+            ) : (
+                <Text style={styles.noPredictions}>No predictions available</Text>
+            )}
         </View>
     );
 
-    const renderBusPredictions = (busPredictions) => (
+    const renderBusPredictions = (busPredictions, routeNumber) => (
         <View style={styles.predictionsContainer}>
             {busPredictions.length > 0 ? (
-                busPredictions.map((prediction, index) => (
-                    <View key={index} style={styles.predictionRow}>
-                        <Text style={styles.predictionText}>
-                            To {prediction.des}
-                        </Text>
-                        <Text style={[
-                            styles.predictionTime,
-                            parseInt(prediction.prdctdn) <= 2 && styles.dueText
-                        ]}>
-                            {prediction.prdctdn <= 0 ? "DUE" : `${prediction.prdctdn} min`}
-                        </Text>
+                <>
+                    <View style={styles.tableHeader}>
+                        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Bus</Text>
+                        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>To</Text>
+                        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
                     </View>
-                ))
+                    
+                    {busPredictions.map((prediction, index) => {
+                        const isDelayed = prediction.dly;
+                        const isDue = parseInt(prediction.prdctdn) <= 2;
+                        
+                        return (
+                            <View key={index} style={styles.tableRow}>
+                                <Text style={[styles.tableCell, { flex: 1 }]}>
+                                    {routeNumber || prediction.rt}
+                                </Text>
+                                <Text style={[styles.tableCell, { flex: 2 }]}>
+                                    {prediction.des}
+                                </Text>
+                                <View style={[
+                                    styles.etaContainer, 
+                                    { flex: 1, justifyContent: 'flex-end' }
+                                ]}>
+                                    <Text style={[
+                                        styles.etaText,
+                                        isDelayed && styles.delayedText,
+                                        isDue && styles.dueText
+                                    ]}>
+                                        {prediction.prdctdn <= 0 ? "DUE" : `${prediction.prdctdn} min`}
+                                    </Text>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </>
             ) : (
                 <Text style={styles.noPredictions}>No predictions available</Text>
             )}
@@ -162,130 +208,226 @@ function Home() {
                         onPress={() => removeFavorite(item)}
                         style={styles.removeButton}
                     >
-                        <Ionicons name="heart" size={24} color="red" />
+                        <Ionicons name="heart" size={24} color="#FF3B30" />
                     </TouchableOpacity>
                 </View>
-                <Text style={styles.favoriteType}>
-                    {item.type === 'train' ? 'Train Station' : 'Bus Stop'}
-                </Text>
+                <View style={styles.typeContainer}>
+                    <Ionicons 
+                        name={item.type === 'train' ? 'train-outline' : 'bus-outline'} 
+                        size={14} 
+                        color="#666" 
+                        style={styles.typeIcon}
+                    />
+                    <Text style={styles.favoriteType}>
+                        {item.type === 'train' ? 'Train Station' : 'Bus Stop'}
+                    </Text>
+                </View>
                 {renderPredictions(item)}
             </View>
         </View>
     );
 
+    const renderEmptyState = () => (
+        <View style={styles.emptyStateContainer}>
+            <Ionicons name="heart-outline" size={64} color="#CCCCCC" />
+            <Text style={styles.noFavorites}>No favorites added yet</Text>
+            <Text style={styles.emptyStateSubtitle}>
+                Add your favorite train stations and bus stops to see their arrival times here
+            </Text>
+        </View>
+    );
+
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Favorites</Text>
-                <TouchableOpacity onPress={fetchAllPredictions} style={styles.refreshButton}>
-                    <Ionicons name="refresh" size={24} color="#007AFF" />
-                </TouchableOpacity>
-            </View>
-            
-            {isLoading && <ActivityIndicator style={styles.loader} />}
-            
-            {favorites.length > 0 ? (
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>My Favorites</Text>
+                    <TouchableOpacity 
+                        onPress={fetchAllPredictions} 
+                        style={styles.refreshButton}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator size="small" color="#007AFF" />
+                        ) : (
+                            <Ionicons name="refresh" size={24} color="#007AFF" />
+                        )}
+                    </TouchableOpacity>
+                </View>
+                
                 <FlatList
                     data={favorites}
                     renderItem={renderFavorite}
                     keyExtractor={(item) => `${item.type}-${item.id}`}
                     style={styles.list}
+                    contentContainerStyle={styles.listContent}
+                    ListEmptyComponent={renderEmptyState}
+                    showsVerticalScrollIndicator={false}
                 />
-            ) : (
-                <Text style={styles.noFavorites}>No favorites added yet</Text>
-            )}
-        </View>
+            </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#F8F8F8',
+    },
+    container: { 
+        flex: 1, 
+        paddingHorizontal: 16,
+    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEEEEE',
+    },
+    title: { 
+        fontSize: 28, 
+        fontWeight: 'bold', 
+        color: '#333333',
     },
     refreshButton: {
         padding: 8,
-    },
-    loader: {
-        marginVertical: 8,
-    },
-    predictionsContainer: {
-        marginTop: 8,
-    },
-    predictionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        borderRadius: 20,
+        backgroundColor: '#F0F8FF',
+        width: 40,
+        height: 40,
         alignItems: 'center',
-        paddingVertical: 4,
-    },
-    predictionText: {
-        flex: 1,
-        fontSize: 14,
-    },
-    predictionTime: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        minWidth: 60,
-        textAlign: 'right',
-    },
-    delayedText: {
-        color: 'red',
-    },
-    dueText: {
-        color: 'green',
-    },
-    favoriteHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    favoriteCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
-        marginBottom: 8,
-    },
-    colorIndicator: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        marginRight: 16,
-    },
-    favoriteInfo: {
-        flex: 1,
-    },
-    favoriteName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    favoriteType: {
-        fontSize: 14,
-        color: '#666',
-    },
-    removeButton: {
-        padding: 8,
+        justifyContent: 'center',
     },
     list: {
         flex: 1,
         width: '100%',
     },
-    noFavorites: {
+    listContent: {
+        paddingVertical: 16,
+        paddingBottom: 32,
+    },
+    favoriteCard: {
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        overflow: 'hidden',
+    },
+    colorIndicator: {
+        width: 8,
+        height: '100%',
+    },
+    favoriteInfo: {
+        flex: 1,
+        padding: 16,
+    },
+    favoriteHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 4,
+    },
+    favoriteName: {
         fontSize: 18,
-        color: '#666',
-        marginTop: 16,
+        fontWeight: 'bold',
+        color: '#333333',
+        flex: 1,
+        flexWrap: 'wrap',
+        paddingRight: 8,
+    },
+    typeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    typeIcon: {
+        marginRight: 4,
+    },
+    favoriteType: {
+        fontSize: 14,
+        color: '#666666',
+    },
+    removeButton: {
+        padding: 8,
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    predictionsContainer: {
+        marginTop: 8,
+        backgroundColor: '#F9F9F9',
+        borderRadius: 12,
+        padding: 12,
+    },
+    tableHeader: {
+        flexDirection: 'row',
+        paddingBottom: 8,
+        marginBottom: 4,
+    },
+    tableHeaderCell: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#666666',
+        textTransform: 'uppercase',
+    },
+    tableRow: {
+        flexDirection: 'row',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEEEEE',
+    },
+    tableCell: {
+        fontSize: 15,
+        color: '#333333',
+    },
+    etaContainer: {
+        flexDirection: 'row',
+    },
+    etaText: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#666666',
+    },
+    delayedText: {
+        color: '#FF3B30',
+    },
+    dueText: {
+        color: '#34C759',
     },
     noPredictions: {
-        fontSize: 18,
-        color: '#666',
-        marginTop: 16,
+        fontSize: 15,
+        color: '#999999',
         textAlign: 'center',
+        paddingVertical: 8,
+    },
+    emptyStateContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 64,
+    },
+    noFavorites: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#666666',
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    emptyStateSubtitle: {
+        fontSize: 14,
+        color: '#999999',
+        textAlign: 'center',
+        paddingHorizontal: 32,
     },
 });
 

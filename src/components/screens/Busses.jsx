@@ -159,6 +159,7 @@ function Busses() {
 		
 	}, []);
 
+	//need to change this useeffect to an active listener instead
 	useEffect(() => {
 		const loadFavorites = async () => {
 			try {
@@ -184,7 +185,7 @@ function Busses() {
 				? response.data["bustime-response"].prd
 				: [];
 
-			console.log(predictions);
+			//console.log(predictions);
 
 			const filteredPredictions = predictions.filter(
 				prediction => prediction.rtdir === direction
@@ -249,20 +250,23 @@ function Busses() {
 		[routes, filterStops]
 	);
 
-	const isFavorite = (routeNum, stopId) => {
-		const favoriteId = `${routeNum}-${stopId}`;
+	const isFavorite = (routeNum, stopName) => {
+		const favoriteId = `${routeNum}-${stopName}`;
 		return favorites.some(fav => fav.id === favoriteId && fav.type === 'bus');
 	};
 
 	const toggleFavorite = async (stopName, stopId, route) => {
 		try {
-			//console.log(route)
+			console.log(stopName)
+
+			const stopIds = Object.values(route.stops[stopName].directions).map(data => data.stopId);
+			console.log(stopIds)
 			const favoriteItem = {
-				id: `${route.routeNum}-${stopId}`, // Unique ID combining route and stop
+				id: `${route.routeNum}-${stopName}`, // Unique ID combining route and stop
 				name: `${route.routeName} - ${stopName}`,
 				type: 'bus',
 				color: route.routeClr, // Use the route's color
-				stopId: stopId,
+				stopIds: stopId,
 				routeNumber: route.routeNum  // Include route number for predictions
 			};
 
@@ -306,12 +310,14 @@ function Busses() {
 	const toggleStopDropdown = useCallback((stopName, routeNum) => {
 		setRoutes(prevRoutes =>
 			prevRoutes.map(route => {
+				
 				if (route.routeNum === routeNum) {
 					const isExpanding = !route.stops[stopName].dropdownOn;
-
+					//console.log(Object.entries(route.stops[stopName].directions))
 					if (isExpanding) {
 						Object.entries(route.stops[stopName].directions).forEach(
 							([direction, data]) => {
+								console.log(data)
 								fetchStopPredictions(data.stopId, routeNum, direction);
 							}
 						);
@@ -362,11 +368,11 @@ function Busses() {
 									section // route info
 								)}
 								style={styles.favoriteButton}
-							>
+							>	
 								<Ionicons 
-									name={isFavorite(section.routeNum, section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId) ? "heart" : "heart-outline"} 
+									name={isFavorite(section.routeNum, item) ? "heart" : "heart-outline"} 
 									size={24} 
-									color={isFavorite(section.routeNum, section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId) ? "red" : "#666"} 
+									color={isFavorite(section.routeNum, item) ? "red" : "#666"} 
 								/>
 							</TouchableOpacity>
 						</View>
