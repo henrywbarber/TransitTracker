@@ -259,14 +259,18 @@ function Busses() {
 		try {
 			console.log(stopName)
 
-			const stopIds = Object.values(route.stops[stopName].directions).map(data => data.stopId);
-			console.log(stopIds)
+			const dirWithStops = Object.fromEntries(
+				Object.entries(route.stops[stopName].directions).map(
+				  ([direction, data]) => [direction, data.stopId]
+				)
+			);
+			//console.log(dirWithStops)
 			const favoriteItem = {
 				id: `${route.routeNum}-${stopName}`, // Unique ID combining route and stop
 				name: `${route.routeName} - ${stopName}`,
 				type: 'bus',
 				color: route.routeClr, // Use the route's color
-				stopIds: stopId,
+				stopIds: dirWithStops,
 				routeNumber: route.routeNum  // Include route number for predictions
 			};
 

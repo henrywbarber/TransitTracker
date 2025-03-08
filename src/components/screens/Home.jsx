@@ -51,7 +51,7 @@ function Home() {
                 if (favorite.type === 'train') {
                     return fetchTrainPredictions(favorite.stopId);
                 } else {
-                    return fetchBusPredictions(favorite.routeNumber, favorite.stopId);
+                    return fetchBusPredictions(favorite.routeNumber, favorite.stopIds);
                 }
             });
 
@@ -82,23 +82,39 @@ function Home() {
         }
     };
 
-    const fetchBusPredictions = async (routeNumber, stopId) => {
+    const fetchBusPredictions = async (routeNumber, stopIds) => {
         try {
-            const response = await axios.get(
-                `http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNumber}&stpid=${stopId}&format=json`
-            );
+            // Fetch predictions for all directions
+            const predictionPromises = Object.entries(stopIds).map(async ([direction, stopId]) => {
+                const response = await axios.get(
+                    `http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNumber}&stpid=${stopId}&format=json`
+                );
+                
+                const predictions = response.data['bustime-response'].prd || [];
+                // Filter predictions for this direction
+                return {
+                    direction,
+                    predictions: predictions.filter(pred => pred.rtdir === direction)
+                };
+            });
+
+            const results = await Promise.all(predictionPromises);
             
-            const predictions = response.data['bustime-response'].prd || [];
-            console.log(predictions)
-            return predictions;
+            // Convert array of results to object with directions as keys
+            const directionPredictions = {};
+            results.forEach(result => {
+                directionPredictions[result.direction] = result.predictions;
+            });
+            
+            return directionPredictions;
         } catch (error) {
             console.error('Error fetching bus predictions:', error);
-            return [];
+            return {};
         }
     };
 
     const renderPredictions = (item) => {
-        const itemPredictions = predictions[item.id] || [];
+        const itemPredictions = predictions[item.id] || {};
         
         if (item.type === 'train') {
             return renderTrainPredictions(itemPredictions);
@@ -154,47 +170,48 @@ function Home() {
         </View>
     );
 
-    const renderBusPredictions = (busPredictions, routeNumber) => (
+    const renderBusPredictions = (busPredictions) => (
         <View style={styles.predictionsContainer}>
-            {busPredictions.length > 0 ? (
-                <>
-                    <View style={styles.tableHeader}>
-                        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Bus</Text>
-                        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>To</Text>
-                        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
-                    </View>
-                    
-                    {busPredictions.map((prediction, index) => {
-                        const isDelayed = prediction.dly;
-                        const isDue = parseInt(prediction.prdctdn) <= 2;
-                        
-                        return (
-                            <View key={index} style={styles.tableRow}>
-                                <Text style={[styles.tableCell, { flex: 1 }]}>
-                                    {routeNumber || prediction.rt}
-                                </Text>
-                                <Text style={[styles.tableCell, { flex: 2 }]}>
-                                    {prediction.des}
-                                </Text>
-                                <View style={[
-                                    styles.etaContainer, 
-                                    { flex: 1, justifyContent: 'flex-end' }
-                                ]}>
-                                    <Text style={[
-                                        styles.etaText,
-                                        isDelayed && styles.delayedText,
-                                        isDue && styles.dueText
-                                    ]}>
-                                        {prediction.prdctdn <= 0 ? "DUE" : `${prediction.prdctdn} min`}
-                                    </Text>
-                                </View>
+            {Object.entries(busPredictions).map(([direction, predictions]) => (
+                <View key={direction} style={styles.directionContainer}>
+                    <Text style={styles.directionHeader}>{direction}</Text>
+                    {predictions.length > 0 ? (
+                        <View>
+                            <View style={styles.tableHeader}>
+                                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Bus</Text>
+                                <Text style={[styles.tableHeaderCell, { flex: 2 }]}>To</Text>
+                                <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
                             </View>
-                        );
-                    })}
-                </>
-            ) : (
-                <Text style={styles.noPredictions}>No predictions available</Text>
-            )}
+                            {predictions.map((prediction, index) => {
+                                const isDelayed = prediction.dly === "1";
+                                const isDue = parseInt(prediction.prdctdn) <= 2;
+                                
+                                return (
+                                    <View key={index} style={styles.tableRow}>
+                                        <Text style={[styles.tableCell, { flex: 1 }]}>
+                                            {prediction.vid}
+                                        </Text>
+                                        <Text style={[styles.tableCell, { flex: 2 }]}>
+                                            {prediction.des}
+                                        </Text>
+                                        <View style={[styles.etaContainer, { flex: 1 }]}>
+                                            <Text style={[
+                                                styles.etaText,
+                                                isDelayed && styles.delayedText,
+                                                isDue && styles.dueText
+                                            ]}>
+                                                {isDue ? "DUE" : `${prediction.prdctdn} min`}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    ) : (
+                        <Text style={styles.noPredictions}>No predictions available</Text>
+                    )}
+                </View>
+            ))}
         </View>
     );
 
@@ -428,6 +445,15 @@ const styles = StyleSheet.create({
         color: '#999999',
         textAlign: 'center',
         paddingHorizontal: 32,
+    },
+    directionContainer: {
+        marginBottom: 16,
+    },
+    directionHeader: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333333',
+        marginBottom: 8,
     },
 });
 
