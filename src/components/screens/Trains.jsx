@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
 	View,
 	Text,
@@ -14,6 +14,8 @@ import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import { FontAwesome } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+
 
 function Trains() {
 	const [search, setSearch] = useState("");
@@ -199,6 +201,25 @@ function Trains() {
 		fetchStations();
 	}, []);
 
+	useFocusEffect(
+		useCallback(() => {
+			const loadFavorites = async () => {
+				try {
+					const savedFavorites = await AsyncStorage.getItem('favorites');
+					if (savedFavorites) {
+						const tempFavs = JSON.parse(savedFavorites);
+						const trainFavs = tempFavs.filter(f => f.type === 'train')
+						setFavorites(trainFavs)
+					}
+				} catch (error) {
+					console.error('Error loading favorites:', error);
+				}
+			};
+
+			loadFavorites();
+		}, [])
+	);
+
 	const fetchStopPredictions = async stopId => {
 		try {
 			// console.log(`Fetching Station Predictions for stopId: ${stopId}`);
@@ -235,12 +256,13 @@ function Trains() {
 
 	const toggleFavorite = async (station) => {
 		try {
+			console.log(station)
 			const favoriteItem = {
 				id: `${station.line_color}-${station.map_id}`,
 				name: station.station_name,
 				type: 'train',
 				color: station.line_color,
-				stopId: station.stops[0].stop_id  // Include stopId for predictions
+				stopId: station.stops.map(s => s.stop_id)  // Include stopId for predictions
 			};
 			
 			const currFavorites = await AsyncStorage.getItem('favorites')
@@ -359,10 +381,27 @@ function Trains() {
 				/>
 				<View style={styles.stopInfo}>
 					<View style={styles.stationTitleContainer}>
-						<Text style={styles.stopName}>{item.station_name}</Text>
-						{item.ada && (
-							<FontAwesome name="wheelchair" size={14} color="black" />
-						)}
+						<View style={styles.stationNameContainer}>
+							<Text style={styles.stopName}>{item.station_name}</Text>
+							{item.ada && (
+								<FontAwesome 
+									name="wheelchair" 
+									size={14} 
+									color="black" 
+									style={styles.wheelchairIcon}
+								/>
+							)}
+						</View>
+						<TouchableOpacity 
+							onPress={() => toggleFavorite(item)}
+							style={styles.favoriteButton}
+						>    
+							<Ionicons 
+								name={isFavorite(item) ? "heart" : "heart-outline"} 
+								size={24} 
+								color={isFavorite(item) ? "red" : "#666"} 
+							/>
+						</TouchableOpacity>
 					</View>
 
 					<Text style={styles.stopSubText}>
@@ -532,7 +571,14 @@ function Trains() {
 const styles = StyleSheet.create({
 	stationTitleContainer: {
 		flexDirection: "row",
+		justifyContent: 'space-between',
 		alignItems: "center",
+		width: '100%'
+	},
+	stationNameContainer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		flex: 1,
 		gap: 8
 	},
 	safeArea: {
@@ -672,6 +718,13 @@ const styles = StyleSheet.create({
 		marginTop: 16,
 		fontSize: 18,
 		color: "#666"
+	},
+	wheelchairIcon: {
+		marginLeft: 4
+	},
+	favoriteButton: {
+		padding: 8,
+		marginLeft: 'auto'
 	}
 });
 

@@ -25,23 +25,26 @@ function Home() {
     }, [favorites]);
 
     const loadFavorites = async () => {
+        
         try {
             const savedFavorites = await AsyncStorage.getItem('favorites');
             if (savedFavorites) {
                 setFavorites(JSON.parse(savedFavorites));
+                console.log(favorites)
             }
         } catch (error) {
             console.error('Error loading favorites:', error);
         }
     };
 
-    const removeFavorite = (item) => {
-        //console.log(item)
+    const removeFavorite = async (item) => {
+        console.log(favorites)
         let tempFavs = favorites.filter(
             fav => !(fav.id === item.id)
         );
         setFavorites(tempFavs)
-        AsyncStorage.setItem(JSON.stringify(tempFavs))
+        await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs))
+        console.log(tempFavs)
     }
 
     const fetchAllPredictions = async () => {
@@ -70,12 +73,16 @@ function Home() {
         }
     };
 
-    const fetchTrainPredictions = async (stopId) => {
+    const fetchTrainPredictions = async (stopIds) => {
         try {
-            const response = await axios.get(
-                `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
-            );
-            return response.data.ctatt ? response.data.ctatt.eta : [];
+            const predictionPromises = stopIds.map(async ([stopId]) => {
+                const response = await axios.get(
+                    `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
+                );
+                return response.data.ctatt ? response.data.ctatt.eta : [];
+            })
+            const results = await Promise.all(predictionPromises)
+            
         } catch (error) {
             console.error('Error fetching train predictions:', error);
             return [];

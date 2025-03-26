@@ -13,6 +13,7 @@ import {
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 const PredictionRow = React.memo(({ prediction }) => {
 	const etaTextStyle = [styles.predictionText, styles.boldText];
@@ -159,21 +160,24 @@ function Busses() {
 		
 	}, []);
 
-	//need to change this useeffect to an active listener instead
-	useEffect(() => {
-		const loadFavorites = async () => {
-			try {
-				const savedFavorites = await AsyncStorage.getItem('favorites');
-				if (savedFavorites) {
-					setFavorites(JSON.parse(savedFavorites));
+	useFocusEffect(
+		useCallback(() => {
+			const loadFavorites = async () => {
+				try {
+					const savedFavorites = await AsyncStorage.getItem('favorites');
+					if (savedFavorites) {
+						const tempFavs = JSON.parse(savedFavorites);
+						const busFavs = tempFavs.filter(f => f.type === 'bus')
+						setFavorites(busFavs)
+					}
+				} catch (error) {
+					console.error('Error loading favorites:', error);
 				}
-			} catch (error) {
-				console.error('Error loading favorites:', error);
-			}
-		};
+			};
 
-		loadFavorites();
-	}, [])
+			loadFavorites();
+		}, [])
+	);
 
 	const fetchStopPredictions = async (stopId, routeNum, direction) => {
 		try {
@@ -266,12 +270,12 @@ function Busses() {
 			);
 			//console.log(dirWithStops)
 			const favoriteItem = {
-				id: `${route.routeNum}-${stopName}`, // Unique ID combining route and stop
+				id: `${route.routeNum}-${stopName}`, 
 				name: `${route.routeName} - ${stopName}`,
 				type: 'bus',
-				color: route.routeClr, // Use the route's color
+				color: route.routeClr,
 				stopIds: dirWithStops,
-				routeNumber: route.routeNum  // Include route number for predictions
+				routeNumber: route.routeNum  //use for predictions
 			};
 
 			// Get current favorites
