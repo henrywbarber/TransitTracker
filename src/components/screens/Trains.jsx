@@ -290,7 +290,7 @@ function Trains() {
 
 	const toggleStopDropdown = item => {
 		//console.log(section.title)
-		// console.log(item);
+		//console.log(item);
 		setLines(prevLines =>
 			prevLines.map(line => {
 				if (

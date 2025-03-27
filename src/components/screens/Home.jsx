@@ -9,6 +9,7 @@ function Home() {
     const [favorites, setFavorites] = useState([]);
     const [predictions, setPredictions] = useState({});
     const [isLoading, setIsLoading] = useState(false);
+    const [trainPredictions, setTrainPredictions] = useState({})
 
     useFocusEffect(
         React.useCallback(() => {
@@ -80,7 +81,11 @@ function Home() {
                 const response = await axios.get(
                     `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
                 );
-                return response.data.ctatt ? response.data.ctatt.eta : [];
+                const predictions = response.data.ctatt ? response.data.ctatt.eta : []
+                const filteredPredictions = predictions.map((prediction) => ({
+                    staNm: prediction.staNm,
+                    
+                }));
             })
             const results = await Promise.all(predictionPromises)
             console.log(results)
