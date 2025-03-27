@@ -75,13 +75,15 @@ function Home() {
 
     const fetchTrainPredictions = async (stopIds) => {
         try {
-            const predictionPromises = stopIds.map(async ([stopId]) => {
+            console.log(stopIds)
+            const predictionPromises = stopIds.map(async (stopId) => {
                 const response = await axios.get(
                     `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
                 );
                 return response.data.ctatt ? response.data.ctatt.eta : [];
             })
             const results = await Promise.all(predictionPromises)
+            console.log(results)
             
         } catch (error) {
             console.error('Error fetching train predictions:', error);

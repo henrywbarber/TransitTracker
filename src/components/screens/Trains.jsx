@@ -256,7 +256,7 @@ function Trains() {
 
 	const toggleFavorite = async (station) => {
 		try {
-			console.log(station)
+			//console.log(station)
 			const favoriteItem = {
 				id: `${station.line_color}-${station.map_id}`,
 				name: station.station_name,
