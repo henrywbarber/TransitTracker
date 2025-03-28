@@ -9,29 +9,40 @@ function Home() {
     const [favorites, setFavorites] = useState([]);
     const [predictions, setPredictions] = useState({});
     const [isLoading, setIsLoading] = useState(false);
-    const [trainPredictions, setTrainPredictions] = useState({})
+    //const [trainPredictions, setTrainPredictions] = useState({})
 
     useFocusEffect(
         React.useCallback(() => {
             loadFavorites();
-            const interval = setInterval(fetchAllPredictions, 60000);
-            return () => clearInterval(interval);
-        }, [])
+        }, []) 
     );
 
+    useFocusEffect(
+        React.useCallback(() => {
+            if (favorites.length > 0) {
+                fetchAllPredictions();
+            }
+        }, [favorites])
+    );
+
+    // Handle initial predictions fetch and set up interval
     useEffect(() => {
         if (favorites.length > 0) {
             fetchAllPredictions();
+            
+            const interval = setInterval(fetchAllPredictions, 60000);
+            
+            return () => clearInterval(interval);
         }
-    }, [favorites]);
+    }, [favorites]); 
 
     const loadFavorites = async () => {
-        
         try {
+            console.log('loading favorites: ')
             const savedFavorites = await AsyncStorage.getItem('favorites');
             if (savedFavorites) {
-                setFavorites(JSON.parse(savedFavorites));
-                console.log(favorites)
+                const parsedFavorites = JSON.parse(savedFavorites);
+                setFavorites(parsedFavorites);
             }
         } catch (error) {
             console.error('Error loading favorites:', error);
@@ -39,13 +50,13 @@ function Home() {
     };
 
     const removeFavorite = async (item) => {
-        console.log(favorites)
+        //console.log(favorites)
         let tempFavs = favorites.filter(
             fav => !(fav.id === item.id)
         );
         setFavorites(tempFavs)
         await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs))
-        console.log(tempFavs)
+        //console.log(tempFavs)
     }
 
     const fetchAllPredictions = async () => {
@@ -76,20 +87,41 @@ function Home() {
 
     const fetchTrainPredictions = async (stopIds) => {
         try {
-            console.log(stopIds)
             const predictionPromises = stopIds.map(async (stopId) => {
                 const response = await axios.get(
                     `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
                 );
-                const predictions = response.data.ctatt ? response.data.ctatt.eta : []
-                const filteredPredictions = predictions.map((prediction) => ({
-                    staNm: prediction.staNm,
-                    
-                }));
-            })
-            const results = await Promise.all(predictionPromises)
-            console.log(results)
-            
+                
+                const predictions = response.data.ctatt?.eta || [];
+                
+                const groupedPredictions = predictions.length > 0 ? 
+                    predictions.reduce((acc, prediction) => {
+                        const direction = prediction.stpDe; 
+                        if (!acc[direction]) {
+                            acc[direction] = [];
+                        }
+                        acc[direction].push({
+                            arrivalTime: prediction.arrT,
+                            destination: prediction.destNm,
+                            runNumber: prediction.rn,
+                            isDelayed: prediction.isDly === "1",
+                            isApproaching: prediction.isApp === "1",
+                            route: prediction.rt,
+                            stopName: prediction.staNm,
+                            stopDescription: prediction.stpDe
+                        });
+                        return acc;
+                    }, {}) 
+                    : {}; 
+
+                return {
+                    stopId,
+                    predictions: groupedPredictions
+                };
+            });
+
+            const results = await Promise.all(predictionPromises);
+            return results;
         } catch (error) {
             console.error('Error fetching train predictions:', error);
             return [];
@@ -98,14 +130,13 @@ function Home() {
 
     const fetchBusPredictions = async (routeNumber, stopIds) => {
         try {
-            // Fetch predictions for all directions
             const predictionPromises = Object.entries(stopIds).map(async ([direction, stopId]) => {
                 const response = await axios.get(
                     `http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNumber}&stpid=${stopId}&format=json`
                 );
                 
                 const predictions = response.data['bustime-response'].prd || [];
-                // Filter predictions for this direction
+                
                 return {
                     direction,
                     predictions: predictions.filter(pred => pred.rtdir === direction)
@@ -114,7 +145,7 @@ function Home() {
 
             const results = await Promise.all(predictionPromises);
             
-            // Convert array of results to object with directions as keys
+            
             const directionPredictions = {};
             results.forEach(result => {
                 directionPredictions[result.direction] = result.predictions;
@@ -129,6 +160,7 @@ function Home() {
 
     const renderPredictions = (item) => {
         const itemPredictions = predictions[item.id] || {};
+        console.log("Item predictions for", item.id, ":", itemPredictions);
         
         if (item.type === 'train') {
             return renderTrainPredictions(itemPredictions);
@@ -137,52 +169,75 @@ function Home() {
         }
     };
 
-    const renderTrainPredictions = (trainPredictions) => (
-        <View style={styles.predictionsContainer}>
-            {trainPredictions.length > 0 ? (
-                <>
-                    <View style={styles.tableHeader}>
-                        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Run</Text>
-                        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Direction</Text>
-                        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
-                    </View>
-                    
-                    {trainPredictions.map((prediction, index) => {
-                        const arrivalTime = new Date(prediction.arrT);
-                        const currentTime = new Date();
-                        const timeDiff = Math.round((arrivalTime - currentTime) / 60000);
-                        const isDelayed = prediction.isDly === "1";
-                        const isDue = prediction.isApp === "1" || timeDiff <= 2;
-                        
-                        return (
-                            <View key={index} style={styles.tableRow}>
-                                <Text style={[styles.tableCell, { flex: 1 }]}>
-                                    {prediction.rn || "—"}
-                                </Text>
-                                <Text style={[styles.tableCell, { flex: 2 }]}>
-                                    {prediction.destNm}
-                                </Text>
-                                <View style={[
-                                    styles.etaContainer, 
-                                    { flex: 1, justifyContent: 'flex-end' }
-                                ]}>
-                                    <Text style={[
-                                        styles.etaText,
-                                        isDelayed && styles.delayedText,
-                                        isDue && styles.dueText
-                                    ]}>
-                                        {isDue ? "DUE" : `${timeDiff} min`}
-                                    </Text>
-                                </View>
-                            </View>
-                        );
-                    })}
-                </>
-            ) : (
-                <Text style={styles.noPredictions}>No predictions available</Text>
-            )}
-        </View>
-    );
+    const renderTrainPredictions = (trainPredictions) => {
+        console.log("Train Predictions received:", trainPredictions);
+
+        if (!trainPredictions || !Array.isArray(trainPredictions) || trainPredictions.length === 0) {
+            return (
+                <View style={styles.predictionsContainer}>
+                    <Text style={styles.noPredictions}>No predictions available</Text>
+                </View>
+            );
+        }
+
+        return (
+            <View style={styles.predictionsContainer}>
+                {trainPredictions.map((stopPredictions, stopIndex) => {
+                    console.log("Stop Predictions:", stopPredictions);
+                    if (!stopPredictions || !stopPredictions.predictions) {
+                        return null;
+                    }
+
+                    return (
+                        <View key={stopIndex} style={styles.stopPredictionsContainer}>
+                            {Object.entries(stopPredictions.predictions).map(([direction, predictions], dirIndex) => {
+                                if (!Array.isArray(predictions)) {
+                                    return null;
+                                }
+
+                                return (
+                                    <View key={`${direction}-${dirIndex}`} style={styles.directionContainer}>
+                                        <Text style={styles.directionHeader}>{direction}</Text>
+                                        <View style={styles.tableHeader}>
+                                            <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Run</Text>
+                                            <Text style={[styles.tableHeaderCell, { flex: 2 }]}>To</Text>
+                                            <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
+                                        </View>
+                                        {predictions.map((prediction, index) => {
+                                            const arrivalTime = new Date(prediction.arrivalTime);
+                                            const currentTime = new Date();
+                                            const timeDiff = Math.round((arrivalTime - currentTime) / 60000);
+                                            const isDue = prediction.isApproaching || timeDiff <= 2;
+
+                                            return (
+                                                <View key={index} style={[styles.tableRow, index === predictions.length - 1 && {borderBottomWidth: 0 }]}>
+                                                    <Text style={[styles.tableCell, { flex: 1 }]}>
+                                                        {prediction.runNumber}
+                                                    </Text>
+                                                    <Text style={[styles.tableCell, { flex: 2 }]}>
+                                                        {prediction.destination}
+                                                    </Text>
+                                                    <View style={[styles.etaContainer]}>
+                                                        <Text style={[
+                                                            styles.etaText,
+                                                            prediction.isDelayed && styles.delayedText,
+                                                            isDue && styles.dueText
+                                                        ]}>
+                                                            {isDue ? "DUE" : `${timeDiff} min`}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    );
+                })}
+            </View>
+        );
+    };
 
     const renderBusPredictions = (busPredictions) => (
         <View style={styles.predictionsContainer}>
@@ -208,7 +263,7 @@ function Home() {
                                         <Text style={[styles.tableCell, { flex: 2 }]}>
                                             {prediction.des}
                                         </Text>
-                                        <View style={[styles.etaContainer, { flex: 1 }]}>
+                                        <View style={[styles.etaContainer]}>
                                             <Text style={[
                                                 styles.etaText,
                                                 isDelayed && styles.delayedText,
@@ -410,24 +465,29 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#666666',
         textTransform: 'uppercase',
+        textAlign: 'left'
     },
     tableRow: {
         flexDirection: 'row',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
+        paddingVertical: 8,
+        borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: '#EEEEEE',
     },
     tableCell: {
         fontSize: 15,
         color: '#333333',
+        textAlign: 'left'
     },
     etaContainer: {
         flexDirection: 'row',
+        justifyContent: 'flex-end',
+        flex: 1
     },
     etaText: {
         fontSize: 15,
         fontWeight: 'bold',
         color: '#666666',
+        textAlign: 'right'
     },
     delayedText: {
         color: '#FF3B30',
@@ -461,14 +521,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: 32,
     },
     directionContainer: {
-        marginBottom: 16,
+        marginBottom: 12
     },
     directionHeader: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: 'bold',
         color: '#333333',
-        marginBottom: 8,
+        marginBottom: 8
     },
+    stopPredictionsContainer: {
+        marginBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEEEEE',
+        paddingBottom: 0,
+        
+    },
+    
 });
 
 export default Home;
