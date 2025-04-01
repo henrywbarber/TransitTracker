@@ -11,12 +11,14 @@ function Home() {
     const [isLoading, setIsLoading] = useState(false);
     //const [trainPredictions, setTrainPredictions] = useState({})
 
+    //loads the favorites everytime the home window is focused
     useFocusEffect(
         React.useCallback(() => {
             loadFavorites();
         }, []) 
     );
 
+    //fetches predictions when home window comes into focus
     useFocusEffect(
         React.useCallback(() => {
             if (favorites.length > 0) {
@@ -25,20 +27,18 @@ function Home() {
         }, [favorites])
     );
 
-    // Handle initial predictions fetch and set up interval
+    //every minute fetchAllPredictions will run to prevent having to reload the page
     useEffect(() => {
         if (favorites.length > 0) {
             fetchAllPredictions();
             
-            const interval = setInterval(fetchAllPredictions, 60000);
-            
-            return () => clearInterval(interval);
+            const interval = setInterval(fetchAllPredictions, 60000);           
+            return () => clearInterval(interval); //cleanup
         }
     }, [favorites]); 
 
     const loadFavorites = async () => {
         try {
-            console.log('loading favorites: ')
             const savedFavorites = await AsyncStorage.getItem('favorites');
             if (savedFavorites) {
                 const parsedFavorites = JSON.parse(savedFavorites);
@@ -63,14 +63,14 @@ function Home() {
         setIsLoading(true);
         try {
             const predictionPromises = favorites.map(favorite => {
-                if (favorite.type === 'train') {
+                if (favorite.type === 'train') { //fetching bus and train favorites individually
                     return fetchTrainPredictions(favorite.stopId);
                 } else {
                     return fetchBusPredictions(favorite.routeNumber, favorite.stopIds);
                 }
             });
 
-            const results = await Promise.all(predictionPromises);
+            const results = await Promise.all(predictionPromises); //wait to continue until all returned
             
             const newPredictions = {};
             favorites.forEach((favorite, index) => {
@@ -87,12 +87,13 @@ function Home() {
 
     const fetchTrainPredictions = async (stopIds) => {
         try {
+            //stop IDs of a particular station are passed in as an array for the station
             const predictionPromises = stopIds.map(async (stopId) => {
                 const response = await axios.get(
                     `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
                 );
                 
-                const predictions = response.data.ctatt?.eta || [];
+                const predictions = response.data.ctatt?.eta || []; //checks if ctatt exists before using eta
                 
                 const groupedPredictions = predictions.length > 0 ? 
                     predictions.reduce((acc, prediction) => {
@@ -100,7 +101,8 @@ function Home() {
                         if (!acc[direction]) {
                             acc[direction] = [];
                         }
-                        acc[direction].push({
+                        //will be formatted like json data where direction is the entry and below data is entered there
+                        acc[direction].push({  //taking all the important data from the API fetch
                             arrivalTime: prediction.arrT,
                             destination: prediction.destNm,
                             runNumber: prediction.rn,
@@ -139,7 +141,7 @@ function Home() {
                 
                 return {
                     direction,
-                    predictions: predictions.filter(pred => pred.rtdir === direction)
+                    predictions: predictions.filter(pred => pred.rtdir === direction)//only take the predictions for the correct direction
                 };
             });
 
@@ -172,7 +174,7 @@ function Home() {
     const renderTrainPredictions = (trainPredictions) => {
         console.log("Train Predictions received:", trainPredictions);
 
-        if (!trainPredictions || !Array.isArray(trainPredictions) || trainPredictions.length === 0) {
+        if (!trainPredictions || !Array.isArray(trainPredictions) || trainPredictions.length === 0) { //error checking
             return (
                 <View style={styles.predictionsContainer}>
                     <Text style={styles.noPredictions}>No predictions available</Text>
@@ -183,20 +185,25 @@ function Home() {
         return (
             <View style={styles.predictionsContainer}>
                 {trainPredictions.map((stopPredictions, stopIndex) => {
-                    console.log("Stop Predictions:", stopPredictions);
                     if (!stopPredictions || !stopPredictions.predictions) {
                         return null;
                     }
 
                     return (
-                        <View key={stopIndex} style={styles.stopPredictionsContainer}>
-                            {Object.entries(stopPredictions.predictions).map(([direction, predictions], dirIndex) => {
+                        <View key={stopIndex} style={[
+                            styles.stopPredictionsContainer,
+                            stopIndex === trainPredictions.length - 1 && { marginBottom: 0, borderBottomWidth: 0 } //removes margin if it is last row
+                        ]}>
+                            {Object.entries(stopPredictions.predictions).map(([direction, predictions], dirIndex, dirArray) => {
                                 if (!Array.isArray(predictions)) {
                                     return null;
                                 }
 
                                 return (
-                                    <View key={`${direction}-${dirIndex}`} style={styles.directionContainer}>
+                                    <View key={`${direction}-${dirIndex}`} style={[
+                                        styles.directionContainer,
+                                        dirIndex === dirArray.length - 1 && { marginBottom: 0 }
+                                    ]}>
                                         <Text style={styles.directionHeader}>{direction}</Text>
                                         <View style={styles.tableHeader}>
                                             <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Run</Text>
@@ -210,7 +217,10 @@ function Home() {
                                             const isDue = prediction.isApproaching || timeDiff <= 2;
 
                                             return (
-                                                <View key={index} style={[styles.tableRow, index === predictions.length - 1 && {borderBottomWidth: 0 }]}>
+                                                <View key={index} style={[
+                                                    styles.tableRow,
+                                                    index === predictions.length - 1 && { borderBottomWidth: 0 }
+                                                ]}>
                                                     <Text style={[styles.tableCell, { flex: 1 }]}>
                                                         {prediction.runNumber}
                                                     </Text>
@@ -241,8 +251,11 @@ function Home() {
 
     const renderBusPredictions = (busPredictions) => (
         <View style={styles.predictionsContainer}>
-            {Object.entries(busPredictions).map(([direction, predictions]) => (
-                <View key={direction} style={styles.directionContainer}>
+            {Object.entries(busPredictions).map(([direction, predictions], index, array) => (
+                <View key={direction} style={[
+                    styles.directionContainer,
+                    index === array.length - 1 && { marginBottom: 0 }
+                ]}>
                     <Text style={styles.directionHeader}>{direction}</Text>
                     {predictions.length > 0 ? (
                         <View>
@@ -256,7 +269,10 @@ function Home() {
                                 const isDue = parseInt(prediction.prdctdn) <= 2;
                                 
                                 return (
-                                    <View key={index} style={styles.tableRow}>
+                                    <View key={index} style={[
+                                        styles.tableRow,
+                                        index === predictions.length - 1 && { borderBottomWidth: 0 }
+                                    ]}>
                                         <Text style={[styles.tableCell, { flex: 1 }]}>
                                             {prediction.vid}
                                         </Text>
@@ -533,8 +549,6 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         borderBottomWidth: 1,
         borderBottomColor: '#EEEEEE',
-        paddingBottom: 0,
-        
     },
     
 });
