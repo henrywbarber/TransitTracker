@@ -9,12 +9,16 @@ function Home() {
     const [favorites, setFavorites] = useState([]);
     const [predictions, setPredictions] = useState({});
     const [isLoading, setIsLoading] = useState(false);
-    //const [trainPredictions, setTrainPredictions] = useState({})
+    const [expandedItems, setExpandedItems] = useState({});
+    const [removedItems, setRemovedItems] = useState(new Set());
 
-    //loads the favorites everytime the home window is focused
+    //loads the favorites and expanded state everytime the home window is focused
     useFocusEffect(
         React.useCallback(() => {
             loadFavorites();
+            loadExpandedState();
+            // Clear removed items when returning to Home screen
+            setRemovedItems(new Set());
         }, []) 
     );
 
@@ -49,15 +53,63 @@ function Home() {
         }
     };
 
+    const loadExpandedState = async () => {
+        try {
+            const savedExpandedState = await AsyncStorage.getItem('expandedItems');
+            if (savedExpandedState) {
+                setExpandedItems(JSON.parse(savedExpandedState));
+            }
+        } catch (error) {
+            console.error('Error loading expanded state:', error);
+        }
+    };
+
+    const saveExpandedState = async (newState) => {
+        try {
+            await AsyncStorage.setItem('expandedItems', JSON.stringify(newState));
+        } catch (error) {
+            console.error('Error saving expanded state:', error);
+        }
+    };
+
+    const toggleExpanded = async (itemId) => {
+        const newExpandedState = {
+            ...expandedItems,
+            [itemId]: !expandedItems[itemId]
+        };
+        setExpandedItems(newExpandedState);
+        await saveExpandedState(newExpandedState);
+    };
+
     const removeFavorite = async (item) => {
-        //console.log(favorites)
+        // Add to removed items set instead of immediately removing
+        setRemovedItems(prev => new Set([...prev, item.id]));
+        
+        // Update AsyncStorage
         let tempFavs = favorites.filter(
             fav => !(fav.id === item.id)
         );
-        setFavorites(tempFavs)
-        await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs))
-        //console.log(tempFavs)
-    }
+        await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
+        
+        // Remove from expanded state
+        const newExpandedState = { ...expandedItems };
+        delete newExpandedState[item.id];
+        setExpandedItems(newExpandedState);
+        await saveExpandedState(newExpandedState);
+    };
+
+    const restoreFavorite = async (item) => {
+        // Remove from removed items set
+        setRemovedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(item.id);
+            return newSet;
+        });
+
+        // Restore in AsyncStorage
+        const tempFavs = [...favorites, item];
+        await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
+    };
 
     const fetchAllPredictions = async () => {
         setIsLoading(true);
@@ -301,32 +353,54 @@ function Home() {
     );
 
     const renderFavorite = ({ item }) => (
-        <View style={styles.favoriteCard}>
-            <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
-            <View style={styles.favoriteInfo}>
-                <View style={styles.favoriteHeader}>
-                    <Text style={styles.favoriteName}>{item.name}</Text>
-                    <TouchableOpacity 
-                        onPress={() => removeFavorite(item)}
-                        style={styles.removeButton}
-                    >
-                        <Ionicons name="heart" size={24} color="#FF3B30" />
-                    </TouchableOpacity>
+        <TouchableOpacity 
+            onPress={() => toggleExpanded(item.id)}
+            activeOpacity={0.7}
+        >
+            <View style={[
+                styles.favoriteCard,
+                removedItems.has(item.id) && styles.removedCard
+            ]}>
+                <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
+                <View style={styles.favoriteInfo}>
+                    <View style={styles.favoriteHeader}>
+                        <View style={styles.favoriteMainContent}>
+                            <Text style={styles.favoriteName}>{item.name}</Text>
+                            <View style={styles.typeContainer}>
+                                <Ionicons 
+                                    name={item.type === 'train' ? 'train-outline' : 'bus-outline'} 
+                                    size={14} 
+                                    color="#666" 
+                                    style={styles.typeIcon}
+                                />
+                                <Text style={styles.favoriteType}>
+                                    {item.type === 'train' ? 'Train Station' : 'Bus Stop'}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={styles.iconContainer}>
+                            <TouchableOpacity 
+                                onPress={() => removedItems.has(item.id) ? restoreFavorite(item) : removeFavorite(item)}
+                                style={styles.removeButton}
+                            >
+                                <Ionicons 
+                                    name={removedItems.has(item.id) ? "heart-outline" : "heart"} 
+                                    size={24} 
+                                    color={removedItems.has(item.id) ? "#007AFF" : "#FF3B30"} 
+                                />
+                            </TouchableOpacity>
+                            <Ionicons 
+                                name={expandedItems[item.id] ? "chevron-up" : "chevron-down"} 
+                                size={16} 
+                                color="#666" 
+                                style={styles.expandIcon}
+                            />
+                        </View>
+                    </View>
+                    {expandedItems[item.id] && renderPredictions(item)}
                 </View>
-                <View style={styles.typeContainer}>
-                    <Ionicons 
-                        name={item.type === 'train' ? 'train-outline' : 'bus-outline'} 
-                        size={14} 
-                        color="#666" 
-                        style={styles.typeIcon}
-                    />
-                    <Text style={styles.favoriteType}>
-                        {item.type === 'train' ? 'Train Station' : 'Bus Stop'}
-                    </Text>
-                </View>
-                {renderPredictions(item)}
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     const renderEmptyState = () => (
@@ -379,13 +453,13 @@ const styles = StyleSheet.create({
     },
     container: { 
         flex: 1, 
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 16,
+        paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#EEEEEE',
     },
@@ -395,11 +469,11 @@ const styles = StyleSheet.create({
         color: '#333333',
     },
     refreshButton: {
-        padding: 8,
+        padding: 6,
         borderRadius: 20,
         backgroundColor: '#F0F8FF',
-        width: 40,
-        height: 40,
+        width: 36,
+        height: 36,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -408,15 +482,15 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     listContent: {
-        paddingVertical: 16,
-        paddingBottom: 32,
+        paddingVertical: 12,
+        paddingBottom: 24,
     },
     favoriteCard: {
         flexDirection: 'row',
         alignItems: 'stretch',
         backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        marginBottom: 16,
+        borderRadius: 12,
+        marginBottom: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -425,31 +499,33 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     colorIndicator: {
-        width: 8,
+        width: 6,
         height: '100%',
     },
     favoriteInfo: {
         flex: 1,
-        padding: 16,
+        padding: 12,
     },
     favoriteHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 4,
+        alignItems: 'center',
+        marginBottom: 2,
+    },
+    favoriteMainContent: {
+        flex: 1,
+        paddingRight: 8,
     },
     favoriteName: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#333333',
-        flex: 1,
         flexWrap: 'wrap',
-        paddingRight: 8,
     },
     typeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginTop: 2,
     },
     typeIcon: {
         marginRight: 4,
@@ -458,23 +534,28 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#666666',
     },
+    iconContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     removeButton: {
-        padding: 8,
-        width: 40,
-        height: 40,
+        padding: 6,
+        width: 36,
+        height: 36,
         alignItems: 'center',
         justifyContent: 'center',
     },
     predictionsContainer: {
-        marginTop: 8,
+        marginTop: 6,
         backgroundColor: '#F9F9F9',
-        borderRadius: 12,
-        padding: 12,
+        borderRadius: 8,
+        padding: 10,
     },
     tableHeader: {
         flexDirection: 'row',
-        paddingBottom: 8,
-        marginBottom: 4,
+        paddingBottom: 6,
+        marginBottom: 2,
     },
     tableHeaderCell: {
         fontSize: 13,
@@ -485,7 +566,7 @@ const styles = StyleSheet.create({
     },
     tableRow: {
         flexDirection: 'row',
-        paddingVertical: 8,
+        paddingVertical: 6,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: '#EEEEEE',
     },
@@ -515,42 +596,48 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: '#999999',
         textAlign: 'center',
-        paddingVertical: 8,
+        paddingVertical: 6,
     },
     emptyStateContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingTop: 64,
+        paddingTop: 48,
     },
     noFavorites: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#666666',
-        marginTop: 16,
-        marginBottom: 8,
+        marginTop: 12,
+        marginBottom: 6,
     },
     emptyStateSubtitle: {
         fontSize: 14,
         color: '#999999',
         textAlign: 'center',
-        paddingHorizontal: 32,
+        paddingHorizontal: 24,
     },
     directionContainer: {
-        marginBottom: 12
+        marginBottom: 8
     },
     directionHeader: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333333',
-        marginBottom: 8
+        marginBottom: 6
     },
     stopPredictionsContainer: {
-        marginBottom: 10,
+        marginBottom: 8,
         borderBottomWidth: 1,
         borderBottomColor: '#EEEEEE',
     },
-    
+    expandIcon: {
+        marginLeft: 4,
+    },
+    removedCard: {
+        opacity: 0.7,
+        backgroundColor: '#F8F8F8',
+    },
 });
 
 export default Home;
