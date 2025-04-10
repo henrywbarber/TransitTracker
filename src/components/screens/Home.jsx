@@ -317,7 +317,7 @@ function Home() {
                                 <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
                             </View>
                             {predictions.map((prediction, index) => {
-                                const isDelayed = prediction.dly === "1";
+                                const isDelayed = prediction.dly === "true";
                                 const isDue = parseInt(prediction.prdctdn) <= 2;
                                 
                                 return (
@@ -337,7 +337,9 @@ function Home() {
                                                 isDelayed && styles.delayedText,
                                                 isDue && styles.dueText
                                             ]}>
-                                                {isDue ? "DUE" : `${prediction.prdctdn} min`}
+                                                {prediction.prdctdn === "DLY" ? "DELAY" : 
+                                                 isDue ? "DUE" : 
+                                                 `${prediction.prdctdn} min`}
                                             </Text>
                                         </View>
                                     </View>
