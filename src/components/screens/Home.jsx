@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import axios from 'axios';
@@ -8,17 +8,14 @@ import { useFocusEffect } from '@react-navigation/native';
 function Home() {
     const [favorites, setFavorites] = useState([]);
     const [predictions, setPredictions] = useState({});
-    const [isLoading, setIsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [expandedItems, setExpandedItems] = useState({});
-    const [removedItems, setRemovedItems] = useState(new Set());
 
     //loads the favorites and expanded state everytime the home window is focused
     useFocusEffect(
         React.useCallback(() => {
             loadFavorites();
             loadExpandedState();
-            // Clear removed items when returning to Home screen
-            setRemovedItems(new Set());
         }, []) 
     );
 
@@ -36,7 +33,11 @@ function Home() {
         if (favorites.length > 0) {
             fetchAllPredictions();
             
-            const interval = setInterval(fetchAllPredictions, 60000);           
+            console.log('[Home] Periodic refresh triggered');
+            const interval = setInterval(() => {
+                console.log('[Home] Periodic refresh triggered');
+                fetchAllPredictions();
+            }, 60000);
             return () => clearInterval(interval); //cleanup
         }
     }, [favorites]); 
@@ -82,47 +83,57 @@ function Home() {
     };
 
     const removeFavorite = async (item) => {
-        // Add to removed items set instead of immediately removing
-        setRemovedItems(prev => new Set([...prev, item.id]));
-        
-        // Update AsyncStorage
-        let tempFavs = favorites.filter(
-            fav => !(fav.id === item.id)
+        Alert.alert(
+            "Remove Favorite",
+            `Are you sure you want to remove ${item.name} from your favorites?`,
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Remove",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            // Update AsyncStorage
+                            const tempFavs = favorites.filter(
+                                fav => !(fav.id === item.id)
+                            );
+                            await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
+                            
+                            // Update state
+                            setFavorites(tempFavs);
+                            
+                            // Remove from expanded state
+                            const newExpandedState = { ...expandedItems };
+                            delete newExpandedState[item.id];
+                            setExpandedItems(newExpandedState);
+                            await saveExpandedState(newExpandedState);
+                            
+                            console.log(`[Home] Removed favorite: ${item.name} (${item.type})`);
+                        } catch (error) {
+                            console.error('Error removing favorite:', error);
+                        }
+                    }
+                }
+            ]
         );
-        await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
-        
-        // Remove from expanded state
-        const newExpandedState = { ...expandedItems };
-        delete newExpandedState[item.id];
-        setExpandedItems(newExpandedState);
-        await saveExpandedState(newExpandedState);
-    };
-
-    const restoreFavorite = async (item) => {
-        // Remove from removed items set
-        setRemovedItems(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(item.id);
-            return newSet;
-        });
-
-        // Restore in AsyncStorage
-        const tempFavs = [...favorites, item];
-        await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
     };
 
     const fetchAllPredictions = async () => {
-        setIsLoading(true);
+        setIsRefreshing(true);
+        console.log(`[Home] Starting fetch for ${favorites.length} favorites`);
         try {
             const predictionPromises = favorites.map(favorite => {
-                if (favorite.type === 'train') { //fetching bus and train favorites individually
+                if (favorite.type === 'train') {
                     return fetchTrainPredictions(favorite.stopId);
                 } else {
                     return fetchBusPredictions(favorite.routeNumber, favorite.stopIds);
                 }
             });
 
-            const results = await Promise.all(predictionPromises); //wait to continue until all returned
+            const results = await Promise.all(predictionPromises);
             
             const newPredictions = {};
             favorites.forEach((favorite, index) => {
@@ -130,22 +141,23 @@ function Home() {
             });
             
             setPredictions(newPredictions);
+            console.log(`[Home] Successfully fetched predictions for ${favorites.length} favorites`);
         } catch (error) {
-            console.error('Error fetching predictions:', error);
+            console.error('[Home] Error fetching predictions:', error);
         } finally {
-            setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
     const fetchTrainPredictions = async (stopIds) => {
         try {
-            //stop IDs of a particular station are passed in as an array for the station
             const predictionPromises = stopIds.map(async (stopId) => {
                 const response = await axios.get(
                     `https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
                 );
                 
-                const predictions = response.data.ctatt?.eta || []; //checks if ctatt exists before using eta
+                const predictions = response.data.ctatt?.eta || [];
+                console.log(`[Home] Fetched ${predictions.length} train predictions for stop ${stopId}`);
                 
                 const groupedPredictions = predictions.length > 0 ? 
                     predictions.reduce((acc, prediction) => {
@@ -153,13 +165,13 @@ function Home() {
                         if (!acc[direction]) {
                             acc[direction] = [];
                         }
-                        //will be formatted like json data where direction is the entry and below data is entered there
-                        acc[direction].push({  //taking all the important data from the API fetch
+                        acc[direction].push({
                             arrivalTime: prediction.arrT,
                             destination: prediction.destNm,
                             runNumber: prediction.rn,
                             isDelayed: prediction.isDly === "1",
                             isApproaching: prediction.isApp === "1",
+                            isScheduled: prediction.isSch === "1",
                             route: prediction.rt,
                             stopName: prediction.staNm,
                             stopDescription: prediction.stpDe
@@ -177,7 +189,7 @@ function Home() {
             const results = await Promise.all(predictionPromises);
             return results;
         } catch (error) {
-            console.error('Error fetching train predictions:', error);
+            console.error('[Home] Error fetching train predictions:', error);
             return [];
         }
     };
@@ -190,15 +202,15 @@ function Home() {
                 );
                 
                 const predictions = response.data['bustime-response'].prd || [];
+                console.log(`[Home] Fetched ${predictions.length} bus predictions for route ${routeNumber} at stop ${stopId}`);
                 
                 return {
                     direction,
-                    predictions: predictions.filter(pred => pred.rtdir === direction)//only take the predictions for the correct direction
+                    predictions: predictions.filter(pred => pred.rtdir === direction)
                 };
             });
 
             const results = await Promise.all(predictionPromises);
-            
             
             const directionPredictions = {};
             results.forEach(result => {
@@ -207,15 +219,13 @@ function Home() {
             
             return directionPredictions;
         } catch (error) {
-            console.error('Error fetching bus predictions:', error);
+            console.error('[Home] Error fetching bus predictions:', error);
             return {};
         }
     };
 
     const renderPredictions = (item) => {
         const itemPredictions = predictions[item.id] || {};
-        console.log("Item predictions for", item.id, ":", itemPredictions);
-        
         if (item.type === 'train') {
             return renderTrainPredictions(itemPredictions);
         } else {
@@ -224,9 +234,7 @@ function Home() {
     };
 
     const renderTrainPredictions = (trainPredictions) => {
-        console.log("Train Predictions received:", trainPredictions);
-
-        if (!trainPredictions || !Array.isArray(trainPredictions) || trainPredictions.length === 0) { //error checking
+        if (!trainPredictions || !Array.isArray(trainPredictions) || trainPredictions.length === 0) {
             return (
                 <View style={styles.predictionsContainer}>
                     <Text style={styles.noPredictions}>No predictions available</Text>
@@ -283,7 +291,8 @@ function Home() {
                                                         <Text style={[
                                                             styles.etaText,
                                                             prediction.isDelayed && styles.delayedText,
-                                                            isDue && styles.dueText
+                                                            isDue && styles.dueText,
+                                                            prediction.isScheduled && styles.scheduledText
                                                         ]}>
                                                             {isDue ? "DUE" : `${timeDiff} min`}
                                                         </Text>
@@ -317,8 +326,10 @@ function Home() {
                                 <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
                             </View>
                             {predictions.map((prediction, index) => {
-                                const isDelayed = prediction.dly === "true";
-                                const isDue = parseInt(prediction.prdctdn) <= 2;
+                                const isDelayed = prediction.dly === "1";
+                                const etaText = prediction.prdctdn === "DUE" || parseInt(prediction.prdctdn) <= 2 
+                                    ? "DUE" 
+                                    : `${prediction.prdctdn} min`;
                                 
                                 return (
                                     <View key={index} style={[
@@ -335,11 +346,9 @@ function Home() {
                                             <Text style={[
                                                 styles.etaText,
                                                 isDelayed && styles.delayedText,
-                                                isDue && styles.dueText
+                                                etaText === "DUE" && styles.dueText
                                             ]}>
-                                                {prediction.prdctdn === "DLY" ? "DELAY" : 
-                                                 isDue ? "DUE" : 
-                                                 `${prediction.prdctdn} min`}
+                                                {etaText}
                                             </Text>
                                         </View>
                                     </View>
@@ -359,10 +368,7 @@ function Home() {
             onPress={() => toggleExpanded(item.id)}
             activeOpacity={0.7}
         >
-            <View style={[
-                styles.favoriteCard,
-                removedItems.has(item.id) && styles.removedCard
-            ]}>
+            <View style={styles.favoriteCard}>
                 <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
                 <View style={styles.favoriteInfo}>
                     <View style={styles.favoriteHeader}>
@@ -382,13 +388,13 @@ function Home() {
                         </View>
                         <View style={styles.iconContainer}>
                             <TouchableOpacity 
-                                onPress={() => removedItems.has(item.id) ? restoreFavorite(item) : removeFavorite(item)}
+                                onPress={() => removeFavorite(item)}
                                 style={styles.removeButton}
                             >
                                 <Ionicons 
-                                    name={removedItems.has(item.id) ? "heart-outline" : "heart"} 
+                                    name="heart" 
                                     size={24} 
-                                    color={removedItems.has(item.id) ? "#007AFF" : "#FF3B30"} 
+                                    color="#FF3B30" 
                                 />
                             </TouchableOpacity>
                             <Ionicons 
@@ -424,9 +430,9 @@ function Home() {
                     <TouchableOpacity 
                         onPress={fetchAllPredictions} 
                         style={styles.refreshButton}
-                        disabled={isLoading}
+                        disabled={isRefreshing}
                     >
-                        {isLoading ? (
+                        {isRefreshing ? (
                             <ActivityIndicator size="small" color="#007AFF" />
                         ) : (
                             <Ionicons name="refresh" size={24} color="#007AFF" />
@@ -461,7 +467,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 12,
+        height: 56,
         borderBottomWidth: 1,
         borderBottomColor: '#EEEEEE',
     },
@@ -593,6 +599,9 @@ const styles = StyleSheet.create({
     },
     dueText: {
         color: '#34C759',
+    },
+    scheduledText: {
+        fontWeight: 'normal',
     },
     noPredictions: {
         fontSize: 15,

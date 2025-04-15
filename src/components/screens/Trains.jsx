@@ -8,7 +8,8 @@ import {
 	ActivityIndicator,
 	SectionList,
 	SafeAreaView,
-	StatusBar
+	StatusBar,
+	Alert
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,7 +20,8 @@ import { useFocusEffect } from '@react-navigation/native';
 
 function Trains() {
 	const [search, setSearch] = useState("");
-	const [isLoading, setIsLoading] = useState(true);
+	const [isLoadingStations, setIsLoadingStations] = useState(true);
+	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [favorites, setFavorites] = useState([]);
 	const [stationPredictions, setStationPredictions] = useState([]);
 	const [lines, setLines] = useState([
@@ -41,7 +43,7 @@ function Trains() {
 			stations: [],
 			dropdownOn: false,
 			directions: {
-				1: "O’Hare-bound",
+				1: "O'Hare-bound",
 				5: "Forest Park-bound"
 			}
 		},
@@ -115,6 +117,7 @@ function Trains() {
 
 	useEffect(() => {
 		const fetchStations = async () => {
+			console.log('[Trains] Starting fetch for stations');
 			try {
 				const response = await axios.get(
 					"https://data.cityofchicago.org/resource/8pix-ypme.json"
@@ -157,7 +160,8 @@ function Trains() {
 											line_color: line.color,
 											dropdownOn: false,
 											lineLabel: line.label,
-											lineColor: line.color
+											lineColor: line.color,
+											directions: line.directions
 										}
 									]
 								};
@@ -166,13 +170,15 @@ function Trains() {
 									...line,
 									stations: line.stations.map(station => {
 										if (station.map_id === mapId) {
+											// Ensure directions are present even when updating existing station
+											const updatedStation = { ...station, directions: line.directions }; 
 											if (
-												!station.stops.some(s => s.stop_id === stop.stop_id)
+												!updatedStation.stops.some(s => s.stop_id === stop.stop_id)
 											) {
 												return {
-													...station,
+													...updatedStation,
 													stops: [
-														...station.stops,
+														...updatedStation.stops,
 														{
 															stop_id: stop.stop_id,
 															stop_name: stop.stop_name
@@ -180,6 +186,7 @@ function Trains() {
 													]
 												};
 											}
+											return updatedStation; // Return updated station even if stop wasn't added
 										}
 										return station;
 									})
@@ -191,10 +198,11 @@ function Trains() {
 				});
 
 				setLines(updatedLines);
+				console.log('[Trains] Successfully fetched stations');
 			} catch (error) {
-				console.error("Error fetching train station data:", error);
+				console.error('[Trains] Error fetching train station data:', error);
 			} finally {
-				setIsLoading(false);
+				setIsLoadingStations(false);
 			}
 		};
 
@@ -248,6 +256,89 @@ function Trains() {
 		}
 	};
 
+	const fetchAllPredictions = async () => {
+		console.log('[Trains] Starting fetchAllPredictions');
+		setIsRefreshing(true);
+		try {
+			// Only fetch predictions for expanded stations
+			const expandedStations = lines.flatMap(line => 
+				line.stations.filter(station => station.dropdownOn)
+			);
+			console.log('[Trains] Expanded stations count:', expandedStations.length);
+
+			if (expandedStations.length === 0) {
+				console.log('[Trains] No expanded stations, skipping fetch');
+				return;
+			}
+
+			const predictionPromises = expandedStations.flatMap(station =>
+				station.stops.map(async stop => {
+					console.log('[Trains] Fetching predictions for stop', stop.stop_id);
+					const response = await axios.get(
+						`https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stop.stop_id}&outputType=JSON`
+					);
+					return {
+						stopId: stop.stop_id,
+						predictions: response.data.ctatt?.eta || []
+					};
+				})
+			);
+
+			const results = await Promise.all(predictionPromises);
+			console.log('[Trains] All predictions fetched successfully');
+			
+			const newPredictions = {};
+			results.forEach(result => {
+				newPredictions[result.stopId] = result.predictions;
+			});
+			
+			setStationPredictions(newPredictions);
+		} catch (error) {
+			console.error('[Trains] Error fetching predictions:', error);
+		} finally {
+			setIsRefreshing(false);
+			console.log('[Trains] Finished fetchAllPredictions');
+		}
+	};
+
+	// Add useEffect to fetch predictions when dropdown state changes
+	useEffect(() => {
+		console.log('[Trains] Dropdown state changed, checking for expanded stations');
+		const hasExpandedStations = lines.some(line => 
+			line.stations.some(station => station.dropdownOn)
+		);
+
+		if (hasExpandedStations) {
+			console.log('[Trains] Found expanded stations, triggering fetch');
+			fetchAllPredictions();
+		} else {
+			console.log('[Trains] No expanded stations found');
+		}
+	}, [lines]);
+
+	// Separate useEffect for periodic refresh - only run once when component mounts
+	useEffect(() => {
+		console.log('[Trains] Setting up periodic refresh interval');
+		const interval = setInterval(() => {
+			console.log('[Trains] Periodic refresh triggered');
+			const hasExpandedStations = lines.some(line => 
+				line.stations.some(station => station.dropdownOn)
+			);
+
+			if (hasExpandedStations) {
+				console.log('[Trains] Found expanded stations during periodic refresh');
+				fetchAllPredictions();
+			} else {
+				console.log('[Trains] No expanded stations during periodic refresh');
+			}
+		}, 60000);
+
+		return () => {
+			console.log('[Trains] Cleaning up periodic refresh interval');
+			clearInterval(interval);
+		};
+	}, []); // Empty dependency array means this only runs once when component mounts
+
 	const isFavorite = (station) => {
 		return favorites.some(
 			fav => fav.id === `${station.line_color}-${station.map_id}` && fav.type === 'train'
@@ -268,34 +359,49 @@ function Trains() {
 			const currFavorites = await AsyncStorage.getItem('favorites')
 			let tempFavs = currFavorites ? JSON.parse(currFavorites) : []
 
-			if(favorites.some(
+			if (favorites.some(
 				fav => fav.id === `${station.line_color}-${station.map_id}` && fav.type === 'train')
-			){
-				tempFavs = tempFavs.filter(
-					fav => !(fav.id === `${station.line_color}-${station.map_id}` && fav.type === 'train')
-				)
+			) {
+				Alert.alert(
+					"Remove Favorite",
+					`Are you sure you want to remove ${station.station_name} from your favorites?`,
+					[
+						{
+							text: "Cancel",
+							style: "cancel"
+						},
+						{
+							text: "Remove",
+							style: "destructive",
+							onPress: async () => {
+								tempFavs = tempFavs.filter(
+									fav => !(fav.id === `${station.line_color}-${station.map_id}` && fav.type === 'train')
+								);
+								await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
+								setFavorites(tempFavs);
+							}
+						}
+					]
+				);
+			} else {
+				tempFavs.push(favoriteItem);
+				await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
+				setFavorites(tempFavs);
 			}
-			else{
-				tempFavs.push(favoriteItem)
-			}
-			
-			await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs))
-			setFavorites(tempFavs);
-
-			
 		} catch (error) {
 			console.error('Error toggling favorite:', error);
 		}
 	};
 
+	// Modify toggleStopDropdown to use fetchAllPredictions
 	const toggleStopDropdown = item => {
+		console.log('[Trains] Toggling stop dropdown for:', item.station_name);
 		setLines(prevLines =>
 			prevLines.map(line => {
 				if (
 					line.stations.some(station => station.map_id === item.map_id) &&
 					line.label == item.lineLabel
 				) {
-					// console.log("passed if");
 					const updatedStations = line.stations.map(station =>
 						station.map_id === item.map_id
 							? {
@@ -304,10 +410,6 @@ function Trains() {
 							  }
 							: station
 					);
-					// Trigger prediction fetch if dropdown is being opened
-					if (!item.dropdownOn) {
-						item.stops.forEach(stop => fetchStopPredictions(stop.stop_id));
-					}
 					return { ...line, stations: updatedStations };
 				}
 				return line;
@@ -354,60 +456,79 @@ function Trains() {
 		search.length > 0 ? null : (
 			<TouchableOpacity
 				onPress={() => toggleDropdown(section.title)}
-				style={[styles.sectionHeader, { borderLeftColor: section.color }]}
+				style={styles.sectionHeaderContainer}
 			>
-				<Text style={styles.lineTitle}>{section.title} Line</Text>
-				<Ionicons
-					name={section.data.length > 0 ? "chevron-up" : "chevron-down"}
-					size={24}
-					color="#666"
-				/>
+				<View style={[styles.stationColorIndicator, { backgroundColor: section.color }]} />
+				<View style={styles.sectionHeaderContent}>
+					<Text style={styles.lineTitle}>{section.title} Line</Text>
+					<Ionicons
+						name={section.data.length > 0 ? "chevron-up" : "chevron-down"}
+						size={24}
+						color="#666"
+					/>
+				</View>
 			</TouchableOpacity>
 		);
 
 	const renderItem = ({ item, section }) => (
-		<TouchableOpacity onPress={() => toggleStopDropdown(item)}>
-			<View style={styles.stopCard}>
-				<View
+		<TouchableOpacity onPress={() => toggleStopDropdown(item)} activeOpacity={0.7}>
+			<View style={styles.stationCard}>
+				<View 
 					style={[
-						styles.stopColorIndicator,
-						{
-							backgroundColor:
-								search.length > 0 ? item.line_color : section.color
-						}
+						styles.stationColorIndicator, 
+						{ backgroundColor: search.length > 0 ? item.line_color : section.color }
 					]}
 				/>
-				<View style={styles.stopInfo}>
-					<View style={styles.stationTitleContainer}>
-						<View style={styles.stationNameContainer}>
-							<Text style={styles.stopName}>{item.station_name}</Text>
-							{item.ada && (
-								<FontAwesome 
-									name="wheelchair" 
+				<View style={styles.stationInfo}>
+					<View style={styles.stationHeader}>
+						<View style={styles.stationMainContent}>
+							<View style={styles.stationNameContainer}>
+								<Text style={styles.stationName}>{item.station_name}</Text>
+								{item.ada && (
+									<FontAwesome 
+										name="wheelchair" 
+										size={14} 
+										color="black" 
+									/>
+								)}
+							</View>
+							<View style={styles.connectionContainer}>
+								<Ionicons 
+									name="git-branch-outline"
 									size={14} 
-									color="black" 
-									style={styles.wheelchairIcon}
+									color="#666"
+									style={styles.connectionIcon}
 								/>
-							)}
+								<Text style={styles.stationSubText}>
+									{extractConnections(item.station_descriptive_name) || 'None'}
+								</Text>
+							</View>
 						</View>
-						<TouchableOpacity 
-							onPress={() => toggleFavorite(item)}
-							style={styles.favoriteButton}
-						>    
+						<View style={styles.iconContainer}>
+							<TouchableOpacity 
+								onPress={(e) => { 
+									e.stopPropagation();
+									toggleFavorite(item);
+								}}
+								style={styles.favoriteButton}
+							>    
+								<Ionicons 
+									name={isFavorite(item) ? "heart" : "heart-outline"} 
+									size={24} 
+									color={isFavorite(item) ? "red" : "#666"} 
+								/>
+							</TouchableOpacity>
 							<Ionicons 
-								name={isFavorite(item) ? "heart" : "heart-outline"} 
-								size={24} 
-								color={isFavorite(item) ? "red" : "#666"} 
+								name={item.dropdownOn ? "chevron-up" : "chevron-down"} 
+								size={16}
+								color="#666" 
+								style={styles.expandIcon}
 							/>
-						</TouchableOpacity>
+						</View>
 					</View>
 
-					<Text style={styles.stopSubText}>
-						Connections: {extractConnections(item.station_descriptive_name)}
-					</Text>
-
 					{item.dropdownOn && (
-						<View style={styles.expandedContent}>
+						<View style={styles.predictionsContainer}>
 							{item.stops.map((stop, stopIndex) => {
 								const rawPredictions = stationPredictions[stop.stop_id] || [];
 
@@ -415,79 +536,76 @@ function Trains() {
 									code.toLowerCase()
 								);
 
-								const predictions = rawPredictions.filter(prediction => {
-									return lineCodesToCompare.includes(
-										prediction.rt.toLowerCase()
-									);
-								});
+								// Group predictions by direction (stop description)
+								const groupedPredictions = rawPredictions
+									.filter(prediction => lineCodesToCompare.includes(prediction.rt.toLowerCase()))
+									.reduce((acc, prediction) => {
+										const direction = item.directions[prediction.dir] || prediction.stpDe;
+										if (!acc[direction]) {
+											acc[direction] = [];
+										}
+										acc[direction].push(prediction);
+										return acc;
+									}, {});
 
 								return (
 									<View
 										key={stopIndex}
-										style={stopIndex !== 0 ? { paddingTop: 10 } : {}}
+										style={[
+											styles.stopPredictionsContainer,
+											stopIndex === item.stops.length - 1 && { borderBottomWidth: 0, marginBottom: 0 }
+										]}
 									>
-										<Text style={styles.stopPredictionTitle}>
-											{stop.stop_name}
-										</Text>
+										{Object.entries(groupedPredictions).length > 0 ? (
+											Object.entries(groupedPredictions).map(([direction, predictions], dirIndex, dirArray) => (
+												<View 
+													key={`${direction}-${dirIndex}`} 
+													style={[
+														styles.directionContainer, 
+														dirIndex === dirArray.length - 1 && { marginBottom: 0 }
+													]}
+												>
+													<Text style={styles.directionHeader}>{direction}</Text>
+													<View style={styles.tableHeader}>
+														<Text style={[styles.tableHeaderCell, { flex: 1 }]}>Run</Text>
+														<Text style={[styles.tableHeaderCell, { flex: 2 }]}>To</Text>
+														<Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>ETA</Text>
+													</View>
+													{predictions.map((prediction, index) => {
+														const arrivalTime = new Date(prediction.arrT);
+														const currentTime = new Date();
+														const timeDiff = Math.round((arrivalTime - currentTime) / 60000);
+														const isDue = prediction.isApp === "1" || timeDiff <= 2;
 
-										<View style={styles.predictionTableHeader}>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												Run
-											</Text>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												Direction
-											</Text>
-											<Text style={[styles.predictionText, styles.boldText]}>
-												ETA
-											</Text>
-										</View>
-
-										{predictions.length > 0 ? (
-											<View>
-												{predictions.map((prediction, index) => {
-													const arrivalTime = new Date(prediction.arrT);
-													const currentTime = new Date();
-													const timeDiff = Math.round(
-														(arrivalTime - currentTime) / 60000
-													);
-													let etaTextStyle = styles.predictionText;
-													if (prediction.isSch === "0") {
-														etaTextStyle = [etaTextStyle, styles.boldText];
-													}
-
-													if (prediction.isDly === "1") {
-														etaTextStyle = [etaTextStyle, { color: "red" }];
-													}
-
-													if (prediction.isApp === "1" || timeDiff <= 2) {
-														etaTextStyle = [
-															etaTextStyle,
-															{
-																color: "green"
-															}
-														];
-													}
-
-													return (
-														<View key={index} style={styles.predictionRow}>
-															<Text style={styles.predictionText}>
-																{prediction.rn}
-															</Text>
-															<Text style={styles.predictionText}>
-																{prediction.destNm}
-															</Text>
-															<Text style={etaTextStyle}>
-																{prediction.isApp === "1" || timeDiff <= 2
-																	? "DUE"
-																	: `${timeDiff} min`}
-															</Text>
-														</View>
-													);
-												})}
-											</View>
+														return (
+															<View key={index} style={[
+																styles.tableRow,
+																index === predictions.length - 1 && { borderBottomWidth: 0 }
+															]}>
+																<Text style={[styles.tableCell, { flex: 1 }]}>
+																	{prediction.rn}
+																</Text>
+																<Text style={[styles.tableCell, { flex: 2 }]}>
+																	{prediction.destNm}
+																</Text>
+																<View style={styles.etaContainer}>
+																	<Text style={[
+																		styles.etaText,
+																		prediction.isDly === "1" && styles.delayedText,
+																		isDue && styles.dueText,
+																		prediction.isSch === "1" && styles.scheduledText
+																	]}>
+																		{isDue ? "DUE" : `${timeDiff} min`}
+																	</Text>
+																</View>
+															</View>
+														);
+													})}
+												</View>
+											))
 										) : (
-											<Text style={[styles.predictionText, { padding: 10 }]}>
-												No predictions available.
+											<Text style={styles.noPredictions}>
+												No predictions available for this stop.
 											</Text>
 										)}
 									</View>
@@ -502,9 +620,9 @@ function Trains() {
 
 	return (
 		<SafeAreaView style={styles.safeArea}>
-			<StatusBar barStyle="dark-content" />
+			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 			<View style={styles.container}>
-				{isLoading ? (
+				{isLoadingStations ? (
 					<View style={styles.loadingContainer}>
 						<ActivityIndicator size="large" color="#007AFF" />
 						<Text style={styles.loadingText}>Loading Stations...</Text>
@@ -512,7 +630,18 @@ function Trains() {
 				) : (
 					<>
 						<View style={styles.header}>
-							<Text style={styles.headerTitle}>Chicago Train Stations</Text>
+							<Text style={styles.title}>Chicago Train Stations</Text>
+							<TouchableOpacity 
+								onPress={fetchAllPredictions} 
+								style={styles.refreshButton}
+								disabled={isRefreshing}
+							>
+								{isRefreshing ? (
+									<ActivityIndicator size="small" color="#007AFF" />
+								) : (
+									<Ionicons name="refresh" size={24} color="#007AFF" />
+								)}
+							</TouchableOpacity>
 						</View>
 						<View style={styles.searchContainer}>
 							<Ionicons
@@ -551,10 +680,11 @@ function Trains() {
 												data: line.dropdownOn ? filterStations(line) : [],
 												color: line.color,
 												stops: line.stations.length,
-												key: line.label
+												key: line.label,
+												directions: line.directions
 										  }))
 								}
-								keyExtractor={(item, index) => `${item.stop_id}-${index}`}
+								keyExtractor={(item, index) => `${item.map_id}-${item.line_label}-${index}`}
 								renderSectionHeader={renderSectionHeader}
 								renderItem={renderItem}
 							/>
@@ -581,22 +711,24 @@ const styles = StyleSheet.create({
 	},
 	safeArea: {
 		flex: 1,
-		backgroundColor: "#f4f4f4"
+		backgroundColor: '#F8F8F8',
 	},
 	container: {
 		flex: 1,
-		padding: 16
+		paddingHorizontal: 12,
 	},
 	header: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: 16
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		height: 56,
+		borderBottomWidth: 1,
+		borderBottomColor: '#EEEEEE',
 	},
-	headerTitle: {
-		fontSize: 24,
-		fontWeight: "bold",
-		color: "#333"
+	title: { 
+		fontSize: 28, 
+		fontWeight: 'bold', 
+		color: '#333333',
 	},
 	searchContainer: {
 		flexDirection: "row",
@@ -604,6 +736,7 @@ const styles = StyleSheet.create({
 		backgroundColor: "#fff",
 		borderRadius: 8,
 		paddingHorizontal: 12,
+		marginTop: 12,
 		marginBottom: 16,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: 2 },
@@ -624,88 +757,170 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		padding: 15
 	},
-	sectionHeader: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
+	sectionHeaderContainer: {
+		flexDirection: 'row',
+		alignItems: 'stretch',
 		backgroundColor: "#fff",
-		padding: 12,
 		borderRadius: 8,
 		marginBottom: 8,
-		borderLeftWidth: 6,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.1,
 		shadowRadius: 4,
-		elevation: 3
+		elevation: 3,
+		overflow: 'hidden',
+	},
+	sectionHeaderContent: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		padding: 12,
+		flex: 1,
 	},
 	lineTitle: {
 		fontSize: 18,
 		fontWeight: "bold",
 		color: "#333"
 	},
-	stopCard: {
-		flexDirection: "row",
-		alignItems: "center",
-		backgroundColor: "#fff",
-		borderRadius: 8,
-		marginBottom: 8,
-		padding: 12,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 1 },
+	stationCard: {
+		flexDirection: 'row',
+		alignItems: 'stretch',
+		backgroundColor: '#FFFFFF',
+		borderRadius: 12,
+		marginBottom: 12,
+		marginLeft: 6,
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.1,
-		shadowRadius: 2,
-		elevation: 2
+		shadowRadius: 4,
+		elevation: 3,
+		overflow: 'hidden',
 	},
-	stopColorIndicator: {
-		width: 8,
-		height: "100%",
-		borderRadius: 4,
-		marginRight: 12
+	stationColorIndicator: {
+		width: 6,
 	},
-	stopInfo: {
+	stationInfo: {
+		flex: 1,
+		padding: 12,
+	},
+	stationHeader: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 2,
+	},
+	stationMainContent: {
+		flex: 1,
+		paddingRight: 8,
+		gap: 2,
+	},
+	stationName: {
+		fontSize: 18,
+		fontWeight: 'bold',
+		color: '#333333',
+		flexShrink: 1,
+	},
+	stationSubText: {
+		fontSize: 14,
+		color: '#666666',
+		flexShrink: 1,
+	},
+	connectionContainer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		marginTop: 2,
+	},
+	connectionIcon: {
+		marginRight: 4,
+	},
+	iconContainer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 0,
+	},
+	favoriteButton: {
+		padding: 6,
+		width: 36, 
+		height: 36,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	expandIcon: {
+		padding: 6,
+		width: 36,
+		height: 36,
+		lineHeight: 24,
+		textAlign: 'center',
+	},
+	predictionsContainer: {
+		marginTop: 10,
+		backgroundColor: '#F9F9F9',
+		borderRadius: 8,
+		padding: 10,
+	},
+	stopPredictionsContainer: {
+		borderBottomWidth: 1,
+		borderBottomColor: '#EEEEEE',
+		marginBottom: 8,
+	},
+	directionContainer: {
+		marginBottom: 8,
+	},
+	directionHeader: {
+		fontSize: 16,
+		fontWeight: 'bold',
+		color: '#333333',
+		marginBottom: 6
+	},
+	tableHeader: {
+		flexDirection: 'row',
+		paddingBottom: 6,
+		marginBottom: 2,
+	},
+	tableHeaderCell: {
+		fontSize: 13,
+		fontWeight: '600',
+		color: '#666666',
+		textTransform: 'uppercase',
+		textAlign: 'left'
+	},
+	tableRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingVertical: 6,
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: '#EEEEEE',
+	},
+	tableCell: {
+		fontSize: 15,
+		color: '#333333',
+		textAlign: 'left'
+	},
+	etaContainer: {
+		flexDirection: 'row',
+		justifyContent: 'flex-end',
 		flex: 1
 	},
-	stopName: {
-		fontSize: 18,
-		fontWeight: "bold",
-		color: "#333"
+	etaText: {
+		fontSize: 15,
+		fontWeight: 'bold',
+		color: '#666666',
+		textAlign: 'right'
 	},
-	stopPredictionTitle: {
-		fontSize: 16,
-		fontWeight: "bold",
-		color: "#333"
+	delayedText: {
+		color: '#FF3B30',
 	},
-	stopSubText: {
-		fontSize: 14,
-		color: "#666"
+	dueText: {
+		color: '#34C759',
 	},
-	expandedContent: {
-		padding: 10,
-		backgroundColor: "#f0f0f0",
-		borderRadius: 5,
-		marginTop: 5
+	scheduledText: {
+		fontWeight: 'normal',
 	},
-	predictionTableHeader: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		paddingVertical: 8,
-		borderBottomWidth: 1,
-		borderBottomColor: "#ccc"
-	},
-	predictionRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		paddingVertical: 8
-	},
-	predictionText: {
-		fontSize: 14,
-		color: "#333",
-		flex: 1,
-		textAlign: "center"
-	},
-	boldText: {
-		fontWeight: "bold"
+	noPredictions: {
+		fontSize: 15,
+		color: '#999999',
+		textAlign: 'center',
+		paddingVertical: 10,
 	},
 	loadingContainer: {
 		flex: 1,
@@ -717,13 +932,15 @@ const styles = StyleSheet.create({
 		fontSize: 18,
 		color: "#666"
 	},
-	wheelchairIcon: {
-		marginLeft: 4
+	refreshButton: {
+		padding: 6,
+		borderRadius: 20,
+		backgroundColor: '#F0F8FF',
+		width: 36,
+		height: 36,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
-	favoriteButton: {
-		padding: 8,
-		marginLeft: 'auto'
-	}
 });
 
 export default Trains;
