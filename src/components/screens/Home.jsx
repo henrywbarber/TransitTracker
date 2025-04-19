@@ -369,7 +369,7 @@ function Home() {
                             <Text style={styles.favoriteName}>{item.name}</Text>
                             <View style={styles.typeContainer}>
                                 <Icon
-                                    name={item.type==='train' ? 'train' : 'bus'}
+                                    name={item.type==='train' ? 'train' : 'bu'}
                                     size={14}
                                     color="#666"
                                     style={styles.typeIcon}
