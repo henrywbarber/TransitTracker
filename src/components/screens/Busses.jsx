@@ -168,8 +168,13 @@ function Busses() {
 					const savedFavorites = await AsyncStorage.getItem('favorites');
 					if (savedFavorites) {
 						const tempFavs = JSON.parse(savedFavorites);
-						const busFavs = tempFavs.filter(f => f.type === 'bus')
-						setFavorites(busFavs)
+						// Ensure each favorite has an isExpanded property
+						const favoritesWithExpandedState = tempFavs.map(favorite => ({
+							...favorite,
+							isExpanded: favorite.isExpanded || false
+						}));
+						const busFavs = favoritesWithExpandedState.filter(f => f.type === 'bus');
+						setFavorites(busFavs);
 					}
 				} catch (error) {
 					console.error('Error loading favorites:', error);
@@ -277,7 +282,8 @@ function Busses() {
 				type: 'bus',
 				color: route.routeClr,
 				stopIds: dirWithStops,
-				routeNumber: route.routeNum  //use for predictions
+				routeNumber: route.routeNum,  //use for predictions
+				isExpanded: false  // Add isExpanded property with default value
 			};
 
 			// Get current favorites

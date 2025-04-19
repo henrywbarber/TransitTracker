@@ -216,8 +216,13 @@ function Trains() {
 					const savedFavorites = await AsyncStorage.getItem('favorites');
 					if (savedFavorites) {
 						const tempFavs = JSON.parse(savedFavorites);
-						const trainFavs = tempFavs.filter(f => f.type === 'train')
-						setFavorites(trainFavs)
+						// Ensure each favorite has an isExpanded property
+						const favoritesWithExpandedState = tempFavs.map(favorite => ({
+							...favorite,
+							isExpanded: favorite.isExpanded || false
+						}));
+						const trainFavs = favoritesWithExpandedState.filter(f => f.type === 'train');
+						setFavorites(trainFavs);
 					}
 				} catch (error) {
 					console.error('Error loading favorites:', error);
@@ -353,7 +358,8 @@ function Trains() {
 				name: station.station_name,
 				type: 'train',
 				color: station.line_color,
-				stopId: station.stops.map(s => s.stop_id)  // Include stopId for predictions
+				stopId: station.stops.map(s => s.stop_id),  // Include stopId for predictions
+				isExpanded: false  // Add isExpanded property with default value
 			};
 			
 			const currFavorites = await AsyncStorage.getItem('favorites')
