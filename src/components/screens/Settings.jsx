@@ -1,7 +1,13 @@
-import React from "react";
-import { View, Text, StyleSheet, SafeAreaView, StatusBar } from "react-native";
+import React, {useState} from "react";
+import { View, Text, StyleSheet, SafeAreaView, StatusBar, Switch } from "react-native";
 
 function Settings() {
+    const [notifications, setNotifications] = useState(false)
+
+    const toggleNotifications = () => {
+        setNotifications(prev => !prev)
+
+    }
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -9,10 +15,18 @@ function Settings() {
                 <View style={styles.header}>
                     <Text style={styles.title}>Settings</Text>
                 </View>
-                <View style={styles.content}>
-                    <Text style={styles.sectionTitle}>App Preferences</Text>
+                <View style={styles.noti}>
+                    <Text style={styles.sectionTitle}>Notifications</Text>
+                    <Switch
+                        trackColor={{false: '#ffffff', true:'#34c759'}}
+                        thumbColor={notifications ? '#FFFFFF' : '#ffffff'}
+                        ios_backgroundColor='#ffffff'
+                        onValueChange={toggleNotifications}
+                        value={notifications}  
+                    />
                 </View>
             </View>
+            
         </SafeAreaView>
     );
 }
@@ -39,15 +53,17 @@ const styles = StyleSheet.create({
         fontWeight: 'bold', 
         color: '#333333',
     },
-    content: {
-        flex: 1,
+    noti: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingTop: 16,
+        paddingHorizontal: 2,
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '600',
         color: '#666666',
-        marginBottom: 12,
     }
 });
 

@@ -61,6 +61,10 @@ const StopDirections = React.memo(({ directions, stopData }) => {
 			)}
 		</View>
 	));
+}, (prevProps, nextProps) => {
+	// Custom comparison function to prevent unnecessary re-renders
+	// Only re-render if the predictions have changed
+	return JSON.stringify(prevProps.directions) === JSON.stringify(nextProps.directions);
 });
 
 const SectionHeader = React.memo(({ section, onToggle }) => (
@@ -243,6 +247,7 @@ function Busses() {
 
 	const filterStops = useCallback(
 		route => {
+			if (!search) return Object.keys(route.stops);
 			const searchLower = search.toLowerCase();
 			return Object.keys(route.stops).filter(stopName =>
 				stopName.toLowerCase().includes(searchLower)
@@ -404,7 +409,7 @@ function Busses() {
 				</View>
 			</TouchableOpacity>
 		),
-		[toggleStopDropdown, favorites]
+		[toggleStopDropdown, toggleFavorite, isFavorite]
 	);
 
 	return (
