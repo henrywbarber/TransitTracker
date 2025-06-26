@@ -4,18 +4,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import axios from 'axios';
 import { useFocusEffect } from '@react-navigation/native';
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 function Home() {
     const [favorites, setFavorites] = useState([]);
     const [predictions, setPredictions] = useState({});
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [expandedItems, setExpandedItems] = useState({});
 
-    //loads the favorites and expanded state everytime the home window is focused
+    //loads the favorites everytime the home window is focused
     useFocusEffect(
         React.useCallback(() => {
             loadFavorites();
-            loadExpandedState();
         }, []) 
     );
 
@@ -47,39 +46,39 @@ function Home() {
             const savedFavorites = await AsyncStorage.getItem('favorites');
             if (savedFavorites) {
                 const parsedFavorites = JSON.parse(savedFavorites);
-                setFavorites(parsedFavorites);
+                // Ensure each favorite has an isExpanded property
+                const favoritesWithExpandedState = parsedFavorites.map(favorite => ({
+                    ...favorite,
+                    isExpanded: favorite.isExpanded || false
+                }));
+                setFavorites(favoritesWithExpandedState);
             }
         } catch (error) {
             console.error('Error loading favorites:', error);
         }
     };
 
-    const loadExpandedState = async () => {
-        try {
-            const savedExpandedState = await AsyncStorage.getItem('expandedItems');
-            if (savedExpandedState) {
-                setExpandedItems(JSON.parse(savedExpandedState));
-            }
-        } catch (error) {
-            console.error('Error loading expanded state:', error);
-        }
-    };
-
-    const saveExpandedState = async (newState) => {
-        try {
-            await AsyncStorage.setItem('expandedItems', JSON.stringify(newState));
-        } catch (error) {
-            console.error('Error saving expanded state:', error);
-        }
-    };
-
     const toggleExpanded = async (itemId) => {
-        const newExpandedState = {
-            ...expandedItems,
-            [itemId]: !expandedItems[itemId]
-        };
-        setExpandedItems(newExpandedState);
-        await saveExpandedState(newExpandedState);
+        try {
+            // Create a new array with the updated favorite
+            const updatedFavorites = favorites.map(favorite => {
+                if (favorite.id === itemId) {
+                    return {
+                        ...favorite,
+                        isExpanded: !favorite.isExpanded
+                    };
+                }
+                return favorite;
+            });
+            
+            // Update state
+            setFavorites(updatedFavorites);
+            
+            // Save to AsyncStorage
+            await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+        } catch (error) {
+            console.error('Error toggling expanded state:', error);
+        }
     };
 
     const removeFavorite = async (item) => {
@@ -104,12 +103,6 @@ function Home() {
                             
                             // Update state
                             setFavorites(tempFavs);
-                            
-                            // Remove from expanded state
-                            const newExpandedState = { ...expandedItems };
-                            delete newExpandedState[item.id];
-                            setExpandedItems(newExpandedState);
-                            await saveExpandedState(newExpandedState);
                             
                             console.log(`[Home] Removed favorite: ${item.name} (${item.type})`);
                         } catch (error) {
@@ -375,12 +368,18 @@ function Home() {
                         <View style={styles.favoriteMainContent}>
                             <Text style={styles.favoriteName}>{item.name}</Text>
                             <View style={styles.typeContainer}>
-                                <Ionicons 
+                                <Icon
+                                    name={item.type==='train' ? 'train' : 'bus'}
+                                    size={14}
+                                    color="#666"
+                                    style={styles.typeIcon}
+                                />
+                                {/* <Ionicons 
                                     name={item.type === 'train' ? 'train-outline' : 'bus-outline'} 
                                     size={14} 
                                     color="#666" 
                                     style={styles.typeIcon}
-                                />
+                                /> */}
                                 <Text style={styles.favoriteType}>
                                     {item.type === 'train' ? 'Train Station' : 'Bus Stop'}
                                 </Text>
@@ -398,14 +397,14 @@ function Home() {
                                 />
                             </TouchableOpacity>
                             <Ionicons 
-                                name={expandedItems[item.id] ? "chevron-up" : "chevron-down"} 
+                                name={item.isExpanded ? "chevron-up" : "chevron-down"} 
                                 size={16} 
                                 color="#666" 
                                 style={styles.expandIcon}
                             />
                         </View>
                     </View>
-                    {expandedItems[item.id] && renderPredictions(item)}
+                    {item.isExpanded && renderPredictions(item)}
                 </View>
             </View>
         </TouchableOpacity>
