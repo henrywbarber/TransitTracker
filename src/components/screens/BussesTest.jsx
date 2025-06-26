@@ -12,11 +12,15 @@ import {
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 const PredictionRow = React.memo(({ prediction }) => {
-	const etaTextStyle = [styles.predictionText, styles.boldText, { textAlign: 'right' }];
+	const etaTextStyle = [
+		styles.predictionText,
+		styles.boldText,
+		{ textAlign: "right" }
+	];
 	if (prediction.dly === "1") {
 		etaTextStyle.push({ color: "#FF3B30" });
 	} else if (prediction.prdctdn <= 2 || prediction.prdctdn === "DUE") {
@@ -36,34 +40,50 @@ const PredictionRow = React.memo(({ prediction }) => {
 	);
 });
 
-const StopDirections = React.memo(({ directions, stopData }) => {
-	return Object.entries(directions).map(([direction, data]) => (
-		<View key={direction} style={{ paddingTop: 10 }}>
-			<Text style={styles.stopPredictionTitle}>{direction}</Text>
-			<View style={styles.predictionTableHeader}>
-				<Text style={[styles.predictionText, styles.boldText]}>Bus</Text>
-				<Text style={[styles.predictionText, styles.boldText]}>
-					Destination
-				</Text>
-				<Text style={[styles.predictionText, styles.boldText, { textAlign: 'right' }]}>ETA</Text>
+const StopDirections = React.memo(
+	({ directions, stopData }) => {
+		return Object.entries(directions).map(([direction, data]) => (
+			<View key={direction} style={{ paddingTop: 10 }}>
+				<Text style={styles.stopPredictionTitle}>{direction}</Text>
+				<View style={styles.predictionTableHeader}>
+					<Text style={[styles.predictionText, styles.boldText]}>Bus</Text>
+					<Text style={[styles.predictionText, styles.boldText]}>
+						Destination
+					</Text>
+					<Text
+						style={[
+							styles.predictionText,
+							styles.boldText,
+							{ textAlign: "right" }
+						]}
+					>
+						ETA
+					</Text>
+				</View>
+				{data.predictions.length > 0 ? (
+					data.predictions.map((prediction, index) => (
+						<PredictionRow
+							key={`${prediction.vid}-${index}`}
+							prediction={prediction}
+						/>
+					))
+				) : (
+					<Text style={[styles.predictionText, { padding: 10 }]}>
+						No predictions available.
+					</Text>
+				)}
 			</View>
-			{data.predictions.length > 0 ? (
-				data.predictions.map((prediction, index) => (
-					<PredictionRow
-						key={`${prediction.vid}-${index}`}
-						prediction={prediction}
-					/>
-				))
-			) : (
-				<Text style={[styles.predictionText, { padding: 10 }]}>
-					No predictions available.
-				</Text>
-			)}
-		</View>
-	));
-}, (prevProps, nextProps) => {
-	return JSON.stringify(prevProps.directions) === JSON.stringify(nextProps.directions);
-});
+		));
+	},
+	(prevProps, nextProps) => {
+		// Custom comparison function to prevent unnecessary re-renders
+		// Only re-render if the predictions have changed
+		return (
+			JSON.stringify(prevProps.directions) ===
+			JSON.stringify(nextProps.directions)
+		);
+	}
+);
 
 const SectionHeader = React.memo(({ section, onToggle }) => (
 	<TouchableOpacity
@@ -81,49 +101,24 @@ const SectionHeader = React.memo(({ section, onToggle }) => (
 	</TouchableOpacity>
 ));
 
-// Updated LoadMoreButton component
-const LoadMoreButton = React.memo(({ onPress, isLoading, hasMore, currentCount, totalCount }) => {
-	if (!hasMore) return null;
-	
-	return (
-		<View style={styles.loadMoreContainer}>
-			<TouchableOpacity 
-				style={[styles.loadMoreButton, isLoading && styles.loadMoreButtonDisabled]} 
-				onPress={onPress}
-				disabled={isLoading}
-			>
-				{isLoading ? (
-					<View style={styles.loadMoreButtonContent}>
-						<ActivityIndicator size="small" color="#fff" />
-						<Text style={styles.loadMoreButtonText}>Loading...</Text>
-					</View>
-				) : (
-					<Text style={styles.loadMoreButtonText}>
-						Load More Routes ({currentCount} of {totalCount})
-					</Text>
-				)}
-			</TouchableOpacity>
-		</View>
-	);
-});
-
-export default function Busses() {
+function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [routes, setRoutes] = useState([]);
 	const [favorites, setFavorites] = useState([]);
-	const [displayedRoutesCount, setDisplayedRoutesCount] = useState(30); // Start with 30 routes
-	const [isLoadingMore, setIsLoadingMore] = useState(false);
-	const ROUTES_PER_PAGE = 30;
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
-			console.log("[Busses] Fetched all routes")
+			console.log("[Busses] Fetched all routes");
 			try {
-				console.log(`Sending fetch to http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`)
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
 				);
+
+				// console.log(
+				//   "First 3 Routes:",
+				//   routesResponse.data["bustime-response"].routes.slice(0, 3)
+				// );
 
 				const routesData = routesResponse.data["bustime-response"].routes.map(
 					route => ({
@@ -185,25 +180,27 @@ export default function Busses() {
 		};
 
 		fetchRoutes();
-		
 	}, []);
 
 	useFocusEffect(
 		useCallback(() => {
 			const loadFavorites = async () => {
 				try {
-					const savedFavorites = await AsyncStorage.getItem('favorites');
+					const savedFavorites = await AsyncStorage.getItem("favorites");
 					if (savedFavorites) {
 						const tempFavs = JSON.parse(savedFavorites);
+						// Ensure each favorite has an isExpanded property
 						const favoritesWithExpandedState = tempFavs.map(favorite => ({
 							...favorite,
 							isExpanded: favorite.isExpanded || false
 						}));
-						const busFavs = favoritesWithExpandedState.filter(f => f.type === 'bus');
+						const busFavs = favoritesWithExpandedState.filter(
+							f => f.type === "bus"
+						);
 						setFavorites(busFavs);
 					}
 				} catch (error) {
-					console.error('Error loading favorites:', error);
+					console.error("Error loading favorites:", error);
 				}
 			};
 
@@ -213,7 +210,7 @@ export default function Busses() {
 
 	const fetchStopPredictions = async (stopId, routeNum, direction) => {
 		try {
-			console.log(`[Busses] Fetched predictions for ${stopId}`)
+			console.log(`[Busses] Fetched predictions for ${stopId}`);
 			const response = await axios.get(
 				`http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNum}&stpid=${stopId}&format=json`
 			);
@@ -221,6 +218,8 @@ export default function Busses() {
 			const predictions = response.data["bustime-response"].prd
 				? response.data["bustime-response"].prd
 				: [];
+
+			//console.log(predictions);
 
 			const filteredPredictions = predictions.filter(
 				prediction => prediction.rtdir === direction
@@ -276,60 +275,65 @@ export default function Busses() {
 		[search]
 	);
 
-	// Modified sections to limit displayed routes
-	const sections = useMemo(() => {
-		const limitedRoutes = routes.slice(0, displayedRoutesCount);
-		return limitedRoutes.map(route => ({
-			...route,
-			data: route.dropdownOn ? filterStops(route) : [],
-			key: route.routeNum
-		}));
-	}, [routes, filterStops, displayedRoutesCount]);
+	const sections = useMemo(
+		() =>
+			routes.map(route => ({
+				...route,
+				data: route.dropdownOn ? filterStops(route) : [],
+				key: route.routeNum
+			})),
+		[routes, filterStops]
+	);
 
 	const isFavorite = (routeNum, stopName) => {
 		const favoriteId = `${routeNum}-${stopName}`;
-		return favorites.some(fav => fav.id === favoriteId && fav.type === 'bus');
+		return favorites.some(fav => fav.id === favoriteId && fav.type === "bus");
 	};
 
 	const toggleFavorite = async (stopName, stopId, route) => {
 		try {
-			console.log(stopName)
+			console.log(stopName);
 
 			const dirWithStops = Object.fromEntries(
 				Object.entries(route.stops[stopName].directions).map(
-				  ([direction, data]) => [direction, data.stopId]
+					([direction, data]) => [direction, data.stopId]
 				)
 			);
-
+			//console.log(dirWithStops)
 			const favoriteItem = {
-				id: `${route.routeNum}-${stopName}`, 
+				id: `${route.routeNum}-${stopName}`,
 				name: `${route.routeName} - ${stopName}`,
-				type: 'bus',
+				type: "bus",
 				color: route.routeClr,
 				stopIds: dirWithStops,
-				routeNumber: route.routeNum,
-				isExpanded: false
+				routeNumber: route.routeNum, //use for predictions
+				isExpanded: false // Add isExpanded property with default value
 			};
 
-			const savedFavorites = await AsyncStorage.getItem('favorites');
+			// Get current favorites
+			const savedFavorites = await AsyncStorage.getItem("favorites");
 			let tempFavs = savedFavorites ? JSON.parse(savedFavorites) : [];
 
+			// Check if already favorited
 			const isFavorited = favorites.some(
-				fav => fav.id === favoriteItem.id && fav.type === 'bus'
+				fav => fav.id === favoriteItem.id && fav.type === "bus"
 			);
 
 			if (isFavorited) {
+				// Remove from favorites
 				tempFavs = tempFavs.filter(
-					fav => !(fav.id === favoriteItem.id && fav.type === 'bus')
+					fav => !(fav.id === favoriteItem.id && fav.type === "bus")
 				);
 			} else {
+				// Add to favorites
 				tempFavs.push(favoriteItem);
 			}
 
-			await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
+			// Save updated favorites
+			await AsyncStorage.setItem("favorites", JSON.stringify(tempFavs));
 			setFavorites(tempFavs);
 		} catch (error) {
-			console.error('Error toggling favorite:', error);
+			console.error("Error toggling favorite:", error);
 		}
 	};
 
@@ -346,14 +350,13 @@ export default function Busses() {
 	const toggleStopDropdown = useCallback((stopName, routeNum) => {
 		setRoutes(prevRoutes =>
 			prevRoutes.map(route => {
-				
 				if (route.routeNum === routeNum) {
 					const isExpanding = !route.stops[stopName].dropdownOn;
-
+					//console.log(Object.entries(route.stops[stopName].directions))
 					if (isExpanding) {
 						Object.entries(route.stops[stopName].directions).forEach(
 							([direction, data]) => {
-								console.log(data)
+								console.log(data);
 								fetchStopPredictions(data.stopId, routeNum, direction);
 							}
 						);
@@ -374,26 +377,6 @@ export default function Busses() {
 			})
 		);
 	}, []);
-
-	// Function to handle loading more routes when button is pressed
-	const loadMoreRoutes = useCallback(() => {
-		if (isLoadingMore || displayedRoutesCount >= routes.length) {
-			return;
-		}
-		
-		console.log(`Loading more routes. Current: ${displayedRoutesCount}, Total: ${routes.length}`);
-		setIsLoadingMore(true);
-		
-		// Simulate loading delay for better UX
-		setTimeout(() => {
-			setDisplayedRoutesCount(prev => {
-				const newCount = Math.min(prev + ROUTES_PER_PAGE, routes.length);
-				console.log(`Updated displayed routes from ${prev} to ${newCount}`);
-				return newCount;
-			});
-			setIsLoadingMore(false);
-		}, 500); // Small delay to show loading state
-	}, [isLoadingMore, routes.length, displayedRoutesCount]);
 
 	const renderSectionHeader = useCallback(
 		({ section }) => (
@@ -417,18 +400,26 @@ export default function Busses() {
 					<View style={styles.stopInfo}>
 						<View style={styles.stopHeader}>
 							<Text style={styles.stopName}>{item}</Text>
-							<TouchableOpacity 
-								onPress={() => toggleFavorite(
-									item,
-									section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId,
-									section
-								)}
+							<TouchableOpacity
+								onPress={() =>
+									toggleFavorite(
+										item, // stopName
+										section.stops[item].directions[
+											Object.keys(section.stops[item].directions)[0]
+										].stopId, // stopId
+										section // route info
+									)
+								}
 								style={styles.favoriteButton}
-							>	
-								<Ionicons 
-									name={isFavorite(section.routeNum, item) ? "heart" : "heart-outline"} 
-									size={24} 
-									color={isFavorite(section.routeNum, item) ? "red" : "#666"} 
+							>
+								<Ionicons
+									name={
+										isFavorite(section.routeNum, item)
+											? "heart"
+											: "heart-outline"
+									}
+									size={24}
+									color={isFavorite(section.routeNum, item) ? "red" : "#666"}
 								/>
 							</TouchableOpacity>
 						</View>
@@ -447,9 +438,6 @@ export default function Busses() {
 		[toggleStopDropdown, toggleFavorite, isFavorite]
 	);
 
-	// Check if there are more routes to load
-	const hasMoreRoutes = displayedRoutesCount < routes.length;
-
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			<StatusBar barStyle="dark-content" />
@@ -463,10 +451,8 @@ export default function Busses() {
 					<>
 						<View style={styles.header}>
 							<Text style={styles.headerTitle}>Chicago Bus Routes</Text>
-							<Text style={styles.routeCounter}>
-								Showing {displayedRoutesCount} of {routes.length} routes
-							</Text>
 						</View>
+
 						<View style={styles.searchContainer}>
 							<Ionicons
 								name="search"
@@ -487,34 +473,20 @@ export default function Busses() {
 						routes.flatMap(route => filterStops(route)).length < 1 ? (
 							<Text style={styles.noMatch}>No Matching Stops</Text>
 						) : (
-							<>
-								<SectionList
-									sections={sections}
-									keyExtractor={(item, index) => `${item}-${index}`}
-									renderSectionHeader={renderSectionHeader}
-									renderItem={renderItem}
-									initialNumToRender={ROUTES_PER_PAGE}
-									maxToRenderPerBatch={ROUTES_PER_PAGE}
-									windowSize={5}
-									scrollEventThrottle={16}
-									removeClippedSubviews={true}
-									// Removed onEndReached and onEndReachedThreshold
-									ListFooterComponent={
-										<LoadMoreButton 
-											onPress={loadMoreRoutes}
-											isLoading={isLoadingMore}
-											hasMore={hasMoreRoutes}
-											currentCount={displayedRoutesCount}
-											totalCount={routes.length}
-										/>
-									}
-									getItemLayout={(data, index) => ({
-										length: 60,
-										offset: 60 * index,
-										index
-									})}
-								/>
-							</>
+							<SectionList
+								sections={sections}
+								keyExtractor={(item, index) => `${item}-${index}`}
+								renderSectionHeader={renderSectionHeader}
+								renderItem={renderItem}
+								initialNumToRender={20}
+								maxToRenderPerBatch={20}
+								windowSize={20}
+								getItemLayout={(data, index) => ({
+									length: 60,
+									offset: 60 * index,
+									index
+								})}
+							/>
 						)}
 					</>
 				)}
@@ -539,11 +511,6 @@ const styles = StyleSheet.create({
 		fontSize: 24,
 		fontWeight: "bold",
 		color: "#333"
-	},
-	routeCounter: {
-		fontSize: 14,
-		color: "#666",
-		marginTop: 4
 	},
 	searchContainer: {
 		flexDirection: "row",
@@ -661,44 +628,14 @@ const styles = StyleSheet.create({
 		color: "#666"
 	},
 	stopHeader: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		width: '100%'
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		width: "100%"
 	},
 	favoriteButton: {
-		padding: 8,
-	},
-	loadMoreContainer: {
-		padding: 20,
-		alignItems: "center",
-		backgroundColor: "#f9f9f9",
-	},
-	loadMoreButton: {
-		backgroundColor: "#007AFF",
-		paddingHorizontal: 24,
-		paddingVertical: 12,
-		borderRadius: 8,
-		minWidth: 200,
-		alignItems: "center",
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.1,
-		shadowRadius: 4,
-		elevation: 3
-	},
-	loadMoreButtonDisabled: {
-		backgroundColor: "#999",
-		opacity: 0.7
-	},
-	loadMoreButtonContent: {
-		flexDirection: "row",
-		alignItems: "center",
-	},
-	loadMoreButtonText: {
-		color: "#fff",
-		fontSize: 16,
-		fontWeight: "600",
-		marginLeft: 8
+		padding: 8
 	}
 });
+
+export default Busses;

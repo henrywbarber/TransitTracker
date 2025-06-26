@@ -773,12 +773,6 @@ function Trains() {
 }
 
 const styles = StyleSheet.create({
-	stationTitleContainer: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		width: "100%"
-	},
 	stationNameContainer: {
 		flexDirection: "row",
 		alignItems: "center",

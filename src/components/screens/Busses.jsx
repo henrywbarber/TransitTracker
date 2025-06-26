@@ -104,6 +104,7 @@ const SectionHeader = React.memo(({ section, onToggle }) => (
 function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
+	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [routes, setRoutes] = useState([]);
 	const [favorites, setFavorites] = useState([]);
 
@@ -263,6 +264,16 @@ function Busses() {
 			);
 		}
 	};
+
+	const fetchAllPredictions = async () => {
+		setIsRefreshing(true);
+		console.log("[Busses] Manual refresh triggered");
+		// TODO: implement logic later
+		setTimeout(() => {
+			setIsRefreshing(false);
+		}, 500); // Temporary delay to simulate refresh
+	};
+	
 
 	const filterStops = useCallback(
 		route => {
@@ -440,8 +451,23 @@ function Busses() {
 
 	return (
 		<SafeAreaView style={styles.safeArea}>
-			<StatusBar barStyle="dark-content" />
+			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 			<View style={styles.container}>
+				<View style={styles.header}>
+					<Text style={styles.title}>Chicago Bus Routes</Text>
+					<TouchableOpacity
+						onPress={fetchAllPredictions}
+						style={styles.refreshButton}
+						disabled={isRefreshing}
+					>
+						{isRefreshing ? (
+							<ActivityIndicator size="small" color="#007AFF" />
+						) : (
+							<Ionicons name="refresh" size={24} color="#007AFF" />
+						)}
+					</TouchableOpacity>
+				</View>
+
 				{isLoading ? (
 					<View style={styles.loadingContainer}>
 						<ActivityIndicator size="large" color="#007AFF" />
@@ -449,9 +475,6 @@ function Busses() {
 					</View>
 				) : (
 					<>
-						<View style={styles.header}>
-							<Text style={styles.headerTitle}>Chicago Bus Routes</Text>
-						</View>
 						<View style={styles.searchContainer}>
 							<Ionicons
 								name="search"
@@ -501,10 +524,29 @@ const styles = StyleSheet.create({
 	},
 	container: {
 		flex: 1,
-		padding: 16
+		paddingHorizontal: 12
 	},
 	header: {
-		marginBottom: 16
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		height: 56,
+		borderBottomWidth: 1,
+		borderBottomColor: "#EEEEEE"
+	},
+	title: {
+		fontSize: 28,
+		fontWeight: "bold",
+		color: "#333333"
+	},
+	refreshButton: {
+		padding: 6,
+		borderRadius: 20,
+		backgroundColor: "#F0F8FF",
+		width: 36,
+		height: 36,
+		alignItems: "center",
+		justifyContent: "center"
 	},
 	headerTitle: {
 		fontSize: 24,
@@ -517,6 +559,7 @@ const styles = StyleSheet.create({
 		backgroundColor: "#fff",
 		borderRadius: 8,
 		paddingHorizontal: 12,
+		marginTop: 12,
 		marginBottom: 16,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: 2 },
