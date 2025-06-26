@@ -62,8 +62,6 @@ const StopDirections = React.memo(({ directions, stopData }) => {
 		</View>
 	));
 }, (prevProps, nextProps) => {
-	// Custom comparison function to prevent unnecessary re-renders
-	// Only re-render if the predictions have changed
 	return JSON.stringify(prevProps.directions) === JSON.stringify(nextProps.directions);
 });
 
@@ -83,14 +81,40 @@ const SectionHeader = React.memo(({ section, onToggle }) => (
 	</TouchableOpacity>
 ));
 
-function Busses() {
+// Updated LoadMoreButton component
+const LoadMoreButton = React.memo(({ onPress, isLoading, hasMore, currentCount, totalCount }) => {
+	if (!hasMore) return null;
+	
+	return (
+		<View style={styles.loadMoreContainer}>
+			<TouchableOpacity 
+				style={[styles.loadMoreButton, isLoading && styles.loadMoreButtonDisabled]} 
+				onPress={onPress}
+				disabled={isLoading}
+			>
+				{isLoading ? (
+					<View style={styles.loadMoreButtonContent}>
+						<ActivityIndicator size="small" color="#fff" />
+						<Text style={styles.loadMoreButtonText}>Loading...</Text>
+					</View>
+				) : (
+					<Text style={styles.loadMoreButtonText}>
+						Load More Routes ({currentCount} of {totalCount})
+					</Text>
+				)}
+			</TouchableOpacity>
+		</View>
+	);
+});
+
+export default function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [routes, setRoutes] = useState([]);
 	const [favorites, setFavorites] = useState([]);
-	const [page, setPage] = useState(1);
+	const [displayedRoutesCount, setDisplayedRoutesCount] = useState(30); // Start with 30 routes
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
-	const ITEMS_PER_PAGE = 30;
+	const ROUTES_PER_PAGE = 30;
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
@@ -100,11 +124,6 @@ function Busses() {
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
 				);
-
-				// console.log(
-				//   "First 3 Routes:",
-				//   routesResponse.data["bustime-response"].routes.slice(0, 3)
-				// );
 
 				const routesData = routesResponse.data["bustime-response"].routes.map(
 					route => ({
@@ -176,7 +195,6 @@ function Busses() {
 					const savedFavorites = await AsyncStorage.getItem('favorites');
 					if (savedFavorites) {
 						const tempFavs = JSON.parse(savedFavorites);
-						// Ensure each favorite has an isExpanded property
 						const favoritesWithExpandedState = tempFavs.map(favorite => ({
 							...favorite,
 							isExpanded: favorite.isExpanded || false
@@ -203,8 +221,6 @@ function Busses() {
 			const predictions = response.data["bustime-response"].prd
 				? response.data["bustime-response"].prd
 				: [];
-
-			//console.log(predictions);
 
 			const filteredPredictions = predictions.filter(
 				prediction => prediction.rtdir === direction
@@ -260,15 +276,15 @@ function Busses() {
 		[search]
 	);
 
-	const sections = useMemo(
-		() =>
-			routes.map(route => ({
-				...route,
-				data: route.dropdownOn ? filterStops(route).slice(0, page * ITEMS_PER_PAGE) : [],
-				key: route.routeNum
-			})),
-		[routes, filterStops, page]
-	);
+	// Modified sections to limit displayed routes
+	const sections = useMemo(() => {
+		const limitedRoutes = routes.slice(0, displayedRoutesCount);
+		return limitedRoutes.map(route => ({
+			...route,
+			data: route.dropdownOn ? filterStops(route) : [],
+			key: route.routeNum
+		}));
+	}, [routes, filterStops, displayedRoutesCount]);
 
 	const isFavorite = (routeNum, stopName) => {
 		const favoriteId = `${routeNum}-${stopName}`;
@@ -284,37 +300,32 @@ function Busses() {
 				  ([direction, data]) => [direction, data.stopId]
 				)
 			);
-			//console.log(dirWithStops)
+
 			const favoriteItem = {
 				id: `${route.routeNum}-${stopName}`, 
 				name: `${route.routeName} - ${stopName}`,
 				type: 'bus',
 				color: route.routeClr,
 				stopIds: dirWithStops,
-				routeNumber: route.routeNum,  //use for predictions
-				isExpanded: false  // Add isExpanded property with default value
+				routeNumber: route.routeNum,
+				isExpanded: false
 			};
 
-			// Get current favorites
 			const savedFavorites = await AsyncStorage.getItem('favorites');
 			let tempFavs = savedFavorites ? JSON.parse(savedFavorites) : [];
 
-			// Check if already favorited
 			const isFavorited = favorites.some(
 				fav => fav.id === favoriteItem.id && fav.type === 'bus'
 			);
 
 			if (isFavorited) {
-				// Remove from favorites
 				tempFavs = tempFavs.filter(
 					fav => !(fav.id === favoriteItem.id && fav.type === 'bus')
 				);
 			} else {
-				// Add to favorites
 				tempFavs.push(favoriteItem);
 			}
 
-			// Save updated favorites
 			await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
 			setFavorites(tempFavs);
 		} catch (error) {
@@ -338,7 +349,7 @@ function Busses() {
 				
 				if (route.routeNum === routeNum) {
 					const isExpanding = !route.stops[stopName].dropdownOn;
-					//console.log(Object.entries(route.stops[stopName].directions))
+
 					if (isExpanding) {
 						Object.entries(route.stops[stopName].directions).forEach(
 							([direction, data]) => {
@@ -364,6 +375,26 @@ function Busses() {
 		);
 	}, []);
 
+	// Function to handle loading more routes when button is pressed
+	const loadMoreRoutes = useCallback(() => {
+		if (isLoadingMore || displayedRoutesCount >= routes.length) {
+			return;
+		}
+		
+		console.log(`Loading more routes. Current: ${displayedRoutesCount}, Total: ${routes.length}`);
+		setIsLoadingMore(true);
+		
+		// Simulate loading delay for better UX
+		setTimeout(() => {
+			setDisplayedRoutesCount(prev => {
+				const newCount = Math.min(prev + ROUTES_PER_PAGE, routes.length);
+				console.log(`Updated displayed routes from ${prev} to ${newCount}`);
+				return newCount;
+			});
+			setIsLoadingMore(false);
+		}, 500); // Small delay to show loading state
+	}, [isLoadingMore, routes.length, displayedRoutesCount]);
+
 	const renderSectionHeader = useCallback(
 		({ section }) => (
 			<SectionHeader section={section} onToggle={toggleRouteDropdown} />
@@ -388,9 +419,9 @@ function Busses() {
 							<Text style={styles.stopName}>{item}</Text>
 							<TouchableOpacity 
 								onPress={() => toggleFavorite(
-									item, // stopName
-									section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId, // stopId
-									section // route info
+									item,
+									section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId,
+									section
 								)}
 								style={styles.favoriteButton}
 							>	
@@ -416,26 +447,8 @@ function Busses() {
 		[toggleStopDropdown, toggleFavorite, isFavorite]
 	);
 
-	const loadMoreItems = useCallback(() => {
-		if (isLoadingMore) return;
-		
-		setIsLoadingMore(true);
-		// Simulate loading delay
-		setTimeout(() => {
-			setPage(prevPage => prevPage + 1);
-			setIsLoadingMore(false);
-		}, 500);
-	}, [isLoadingMore]);
-
-	const renderFooter = useCallback(() => {
-		if (!isLoadingMore) return null;
-		return (
-			<View style={styles.footerLoader}>
-				<ActivityIndicator size="small" color="#007AFF" />
-				<Text style={styles.loadingMoreText}>Loading more stops...</Text>
-			</View>
-		);
-	}, [isLoadingMore]);
+	// Check if there are more routes to load
+	const hasMoreRoutes = displayedRoutesCount < routes.length;
 
 	return (
 		<SafeAreaView style={styles.safeArea}>
@@ -450,6 +463,9 @@ function Busses() {
 					<>
 						<View style={styles.header}>
 							<Text style={styles.headerTitle}>Chicago Bus Routes</Text>
+							<Text style={styles.routeCounter}>
+								Showing {displayedRoutesCount} of {routes.length} routes
+							</Text>
 						</View>
 						<View style={styles.searchContainer}>
 							<Ionicons
@@ -471,23 +487,34 @@ function Busses() {
 						routes.flatMap(route => filterStops(route)).length < 1 ? (
 							<Text style={styles.noMatch}>No Matching Stops</Text>
 						) : (
-							<SectionList
-								sections={sections}
-								keyExtractor={(item, index) => `${item}-${index}`}
-								renderSectionHeader={renderSectionHeader}
-								renderItem={renderItem}
-								initialNumToRender={ITEMS_PER_PAGE}
-								maxToRenderPerBatch={ITEMS_PER_PAGE}
-								windowSize={5}
-								onEndReached={loadMoreItems}
-								onEndReachedThreshold={0.5}
-								ListFooterComponent={renderFooter}
-								getItemLayout={(data, index) => ({
-									length: 60,
-									offset: 60 * index,
-									index
-								})}
-							/>
+							<>
+								<SectionList
+									sections={sections}
+									keyExtractor={(item, index) => `${item}-${index}`}
+									renderSectionHeader={renderSectionHeader}
+									renderItem={renderItem}
+									initialNumToRender={ROUTES_PER_PAGE}
+									maxToRenderPerBatch={ROUTES_PER_PAGE}
+									windowSize={5}
+									scrollEventThrottle={16}
+									removeClippedSubviews={true}
+									// Removed onEndReached and onEndReachedThreshold
+									ListFooterComponent={
+										<LoadMoreButton 
+											onPress={loadMoreRoutes}
+											isLoading={isLoadingMore}
+											hasMore={hasMoreRoutes}
+											currentCount={displayedRoutesCount}
+											totalCount={routes.length}
+										/>
+									}
+									getItemLayout={(data, index) => ({
+										length: 60,
+										offset: 60 * index,
+										index
+									})}
+								/>
+							</>
 						)}
 					</>
 				)}
@@ -512,6 +539,11 @@ const styles = StyleSheet.create({
 		fontSize: 24,
 		fontWeight: "bold",
 		color: "#333"
+	},
+	routeCounter: {
+		fontSize: 14,
+		color: "#666",
+		marginTop: 4
 	},
 	searchContainer: {
 		flexDirection: "row",
@@ -636,7 +668,37 @@ const styles = StyleSheet.create({
 	},
 	favoriteButton: {
 		padding: 8,
+	},
+	loadMoreContainer: {
+		padding: 20,
+		alignItems: "center",
+		backgroundColor: "#f9f9f9",
+	},
+	loadMoreButton: {
+		backgroundColor: "#007AFF",
+		paddingHorizontal: 24,
+		paddingVertical: 12,
+		borderRadius: 8,
+		minWidth: 200,
+		alignItems: "center",
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.1,
+		shadowRadius: 4,
+		elevation: 3
+	},
+	loadMoreButtonDisabled: {
+		backgroundColor: "#999",
+		opacity: 0.7
+	},
+	loadMoreButtonContent: {
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	loadMoreButtonText: {
+		color: "#fff",
+		fontSize: 16,
+		fontWeight: "600",
+		marginLeft: 8
 	}
 });
-
-export default Busses;
