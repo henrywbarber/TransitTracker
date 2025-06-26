@@ -108,6 +108,9 @@ function Busses() {
 	const [routes, setRoutes] = useState([]);
 	const [favorites, setFavorites] = useState([]);
 
+	const [currentPage, setCurrentPage] = useState(0);
+	const ITEMS_PER_PAGE = 25;
+
 	useEffect(() => {
 		const fetchRoutes = async () => {
 			console.log("[Busses] Fetched all routes");
@@ -115,11 +118,6 @@ function Busses() {
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
 				);
-
-				// console.log(
-				//   "First 3 Routes:",
-				//   routesResponse.data["bustime-response"].routes.slice(0, 3)
-				// );
 
 				const routesData = routesResponse.data["bustime-response"].routes.map(
 					route => ({
@@ -132,7 +130,7 @@ function Busses() {
 					})
 				);
 
-				const routesWithDirectionsAndStops = await Promise.all(
+				const routesWithDetails = await Promise.all(
 					routesData.map(async route => {
 						const directionResponse = await axios.get(
 							`http://www.ctabustracker.com/bustime/api/v2/getdirections?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&format=json`
@@ -161,7 +159,7 @@ function Busses() {
 									}
 
 									route.stops[stopName].directions[direction] = {
-										stopId: stopId,
+										stopId,
 										predictions: []
 									};
 								});
@@ -172,7 +170,7 @@ function Busses() {
 					})
 				);
 
-				setRoutes(routesWithDirectionsAndStops);
+				setRoutes(routesWithDetails);
 			} catch (error) {
 				console.error("Error fetching bus route data:", error);
 			} finally {
@@ -190,14 +188,9 @@ function Busses() {
 					const savedFavorites = await AsyncStorage.getItem("favorites");
 					if (savedFavorites) {
 						const tempFavs = JSON.parse(savedFavorites);
-						// Ensure each favorite has an isExpanded property
-						const favoritesWithExpandedState = tempFavs.map(favorite => ({
-							...favorite,
-							isExpanded: favorite.isExpanded || false
-						}));
-						const busFavs = favoritesWithExpandedState.filter(
-							f => f.type === "bus"
-						);
+						const busFavs = tempFavs
+							.map(fav => ({ ...fav, isExpanded: fav.isExpanded || false }))
+							.filter(fav => fav.type === "bus");
 						setFavorites(busFavs);
 					}
 				} catch (error) {
@@ -216,11 +209,7 @@ function Busses() {
 				`http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNum}&stpid=${stopId}&format=json`
 			);
 
-			const predictions = response.data["bustime-response"].prd
-				? response.data["bustime-response"].prd
-				: [];
-
-			//console.log(predictions);
+			const predictions = response.data["bustime-response"].prd || [];
 
 			const filteredPredictions = predictions.filter(
 				prediction => prediction.rtdir === direction
@@ -230,8 +219,8 @@ function Busses() {
 				prevRoutes.map(route => {
 					if (route.routeNum === routeNum) {
 						const stopName = Object.keys(route.stops).find(name =>
-							Object.keys(route.stops[name].directions).some(
-								dir => route.stops[name].directions[dir].stopId === stopId
+							Object.values(route.stops[name].directions).some(
+								dir => dir.stopId === stopId
 							)
 						);
 
@@ -258,22 +247,15 @@ function Busses() {
 				})
 			);
 		} catch (error) {
-			console.error(
-				`Error fetching predictions for stopId ${stopId} routeNum ${routeNum} direction ${direction}:`,
-				error
-			);
+			console.error("Error fetching predictions:", error);
 		}
 	};
 
 	const fetchAllPredictions = async () => {
 		setIsRefreshing(true);
 		console.log("[Busses] Manual refresh triggered");
-		// TODO: implement logic later
-		setTimeout(() => {
-			setIsRefreshing(false);
-		}, 500); // Temporary delay to simulate refresh
+		setTimeout(() => setIsRefreshing(false), 500); // Simulated
 	};
-	
 
 	const filterStops = useCallback(
 		route => {
@@ -286,14 +268,20 @@ function Busses() {
 		[search]
 	);
 
+	const paginatedRoutes = useMemo(() => {
+		const start = currentPage * ITEMS_PER_PAGE;
+		const end = start + ITEMS_PER_PAGE;
+		return routes.slice(start, end);
+	}, [routes, currentPage]);
+
 	const sections = useMemo(
 		() =>
-			routes.map(route => ({
+			paginatedRoutes.map(route => ({
 				...route,
 				data: route.dropdownOn ? filterStops(route) : [],
 				key: route.routeNum
 			})),
-		[routes, filterStops]
+		[paginatedRoutes, filterStops]
 	);
 
 	const isFavorite = (routeNum, stopName) => {
@@ -303,44 +291,38 @@ function Busses() {
 
 	const toggleFavorite = async (stopName, stopId, route) => {
 		try {
-			console.log(stopName);
-
 			const dirWithStops = Object.fromEntries(
 				Object.entries(route.stops[stopName].directions).map(
 					([direction, data]) => [direction, data.stopId]
 				)
 			);
-			//console.log(dirWithStops)
+
 			const favoriteItem = {
 				id: `${route.routeNum}-${stopName}`,
 				name: `${route.routeName} - ${stopName}`,
 				type: "bus",
 				color: route.routeClr,
 				stopIds: dirWithStops,
-				routeNumber: route.routeNum, //use for predictions
-				isExpanded: false // Add isExpanded property with default value
+				routeNumber: route.routeNum,
+				isExpanded: false
 			};
 
-			// Get current favorites
-			const savedFavorites = await AsyncStorage.getItem("favorites");
-			let tempFavs = savedFavorites ? JSON.parse(savedFavorites) : [];
+			let tempFavs = JSON.parse(
+				(await AsyncStorage.getItem("favorites")) || "[]"
+			);
 
-			// Check if already favorited
-			const isFavorited = favorites.some(
+			const already = tempFavs.some(
 				fav => fav.id === favoriteItem.id && fav.type === "bus"
 			);
 
-			if (isFavorited) {
-				// Remove from favorites
+			if (already) {
 				tempFavs = tempFavs.filter(
 					fav => !(fav.id === favoriteItem.id && fav.type === "bus")
 				);
 			} else {
-				// Add to favorites
 				tempFavs.push(favoriteItem);
 			}
 
-			// Save updated favorites
 			await AsyncStorage.setItem("favorites", JSON.stringify(tempFavs));
 			setFavorites(tempFavs);
 		} catch (error) {
@@ -363,11 +345,10 @@ function Busses() {
 			prevRoutes.map(route => {
 				if (route.routeNum === routeNum) {
 					const isExpanding = !route.stops[stopName].dropdownOn;
-					//console.log(Object.entries(route.stops[stopName].directions))
+
 					if (isExpanding) {
 						Object.entries(route.stops[stopName].directions).forEach(
 							([direction, data]) => {
-								console.log(data);
 								fetchStopPredictions(data.stopId, routeNum, direction);
 							}
 						);
@@ -414,11 +395,11 @@ function Busses() {
 							<TouchableOpacity
 								onPress={() =>
 									toggleFavorite(
-										item, // stopName
+										item,
 										section.stops[item].directions[
 											Object.keys(section.stops[item].directions)[0]
-										].stopId, // stopId
-										section // route info
+										].stopId,
+										section
 									)
 								}
 								style={styles.favoriteButton}
@@ -486,30 +467,61 @@ function Busses() {
 								style={styles.searchBar}
 								placeholder="Search by Stop Name"
 								value={search}
-								onChangeText={setSearch}
+								onChangeText={text => {
+									setSearch(text);
+									setCurrentPage(0);
+								}}
 								clearButtonMode="always"
 								autoComplete=""
 							/>
 						</View>
-						{search.length > 0 &&
-						routes.flatMap(route => filterStops(route)).length < 1 ? (
-							<Text style={styles.noMatch}>No Matching Stops</Text>
-						) : (
-							<SectionList
-								sections={sections}
-								keyExtractor={(item, index) => `${item}-${index}`}
-								renderSectionHeader={renderSectionHeader}
-								renderItem={renderItem}
-								initialNumToRender={20}
-								maxToRenderPerBatch={20}
-								windowSize={20}
-								getItemLayout={(data, index) => ({
-									length: 60,
-									offset: 60 * index,
-									index
-								})}
-							/>
-						)}
+
+						<View style={styles.paginationContainer}>
+							<TouchableOpacity
+								style={[
+									styles.pageButton,
+									currentPage === 0 && { opacity: 0.5 }
+								]}
+								onPress={() => setCurrentPage(p => Math.max(p - 1, 0))}
+								disabled={currentPage === 0}
+							>
+								<Ionicons name="arrow-back" size={20} color="#007AFF" />
+								<Text style={styles.pageButtonText}>Previous</Text>
+							</TouchableOpacity>
+
+							<Text style={styles.pageNumberText}>
+								Page {currentPage + 1} of{" "}
+								{Math.ceil(routes.length / ITEMS_PER_PAGE)}
+							</Text>
+
+							<TouchableOpacity
+								style={[
+									styles.pageButton,
+									(currentPage + 1) * ITEMS_PER_PAGE >= routes.length && {
+										opacity: 0.5
+									}
+								]}
+								onPress={() =>
+									setCurrentPage(p =>
+										(p + 1) * ITEMS_PER_PAGE < routes.length ? p + 1 : p
+									)
+								}
+								disabled={(currentPage + 1) * ITEMS_PER_PAGE >= routes.length}
+							>
+								<Text style={styles.pageButtonText}>Next</Text>
+								<Ionicons name="arrow-forward" size={20} color="#007AFF" />
+							</TouchableOpacity>
+						</View>
+
+						<SectionList
+							sections={sections}
+							keyExtractor={(item, index) => `${item}-${index}`}
+							renderSectionHeader={renderSectionHeader}
+							renderItem={renderItem}
+							initialNumToRender={20}
+							maxToRenderPerBatch={20}
+							windowSize={20}
+						/>
 					</>
 				)}
 			</View>
@@ -594,6 +606,30 @@ const styles = StyleSheet.create({
 		shadowOpacity: 0.1,
 		shadowRadius: 4,
 		elevation: 3
+	},
+	paginationContainer: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: 12,
+		paddingHorizontal: 8
+	},
+	pageButton: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 4,
+		padding: 8,
+		borderRadius: 6,
+		backgroundColor: "#F0F8FF"
+	},
+	pageButtonText: {
+		fontSize: 16,
+		color: "#007AFF",
+		fontWeight: "600"
+	},
+	pageNumberText: {
+		fontSize: 16,
+		color: "#333"
 	},
 	routeTitle: {
 		fontSize: 18,
