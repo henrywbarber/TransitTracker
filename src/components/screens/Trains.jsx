@@ -622,6 +622,37 @@ function Trains() {
 		<SafeAreaView style={styles.safeArea}>
 			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 			<View style={styles.container}>
+				<View style={styles.header}>
+					<Text style={styles.title}>Chicago Train Stations</Text>
+					<TouchableOpacity 
+						onPress={fetchAllPredictions} 
+						style={styles.refreshButton}
+						disabled={isRefreshing}
+					>
+						{isRefreshing ? (
+							<ActivityIndicator size="small" color="#007AFF" />
+						) : (
+							<Ionicons name="refresh" size={24} color="#007AFF" />
+						)}
+					</TouchableOpacity>
+				</View>
+				<View style={styles.searchContainer}>
+					<Ionicons
+						name="search"
+						size={20}
+						color="#999"
+						style={styles.searchIcon}
+					/>
+					<TextInput
+						style={styles.searchBar}
+						placeholder="Search by Station Name"
+						value={search}
+						onChangeText={handleSearch}
+						clearButtonMode="always"
+						autoComplete=""
+					/>
+				</View>
+
 				{isLoadingStations ? (
 					<View style={styles.loadingContainer}>
 						<ActivityIndicator size="large" color="#007AFF" />
@@ -629,37 +660,6 @@ function Trains() {
 					</View>
 				) : (
 					<>
-						<View style={styles.header}>
-							<Text style={styles.title}>Chicago Train Stations</Text>
-							<TouchableOpacity 
-								onPress={fetchAllPredictions} 
-								style={styles.refreshButton}
-								disabled={isRefreshing}
-							>
-								{isRefreshing ? (
-									<ActivityIndicator size="small" color="#007AFF" />
-								) : (
-									<Ionicons name="refresh" size={24} color="#007AFF" />
-								)}
-							</TouchableOpacity>
-						</View>
-						<View style={styles.searchContainer}>
-							<Ionicons
-								name="search"
-								size={20}
-								color="#999"
-								style={styles.searchIcon}
-							/>
-							<TextInput
-								style={styles.searchBar}
-								placeholder="Search by Station Name"
-								value={search}
-								onChangeText={handleSearch}
-								clearButtonMode="always"
-								autoComplete=""
-							/>
-						</View>
-
 						{search.length > 0 &&
 						lines.flatMap(line => filterStations(line)).length < 1 ? (
 							<Text style={styles.noMatch}>No Matching Stations</Text>
