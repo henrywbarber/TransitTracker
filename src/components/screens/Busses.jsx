@@ -67,7 +67,7 @@ const StopDirections = React.memo(({ directions, stopData }) => {
 	return JSON.stringify(prevProps.directions) === JSON.stringify(nextProps.directions);
 });
 
-const SectionHeader = React.memo(({ section, onToggle }) => (
+const SectionHeader = (({ section, onToggle }) => (
 	<TouchableOpacity
 		onPress={() => onToggle(section.routeNum)}
 		style={[styles.sectionHeader, { borderLeftColor: section.routeClr }]}
@@ -86,8 +86,55 @@ const SectionHeader = React.memo(({ section, onToggle }) => (
 function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
-	const [routes, setRoutes] = useState([]);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	const [allRoutes, setAllRoutes] = useState([]);
+	const [displayedRoutes, setDisplayedRoutes] = useState([]);
+	const [currentPage, setCurrentPage] = useState(0);
 	const [favorites, setFavorites] = useState([]);
+	
+	const ROUTES_PER_PAGE = 20;
+
+	const processRouteData = async (routes) => {
+		return Promise.all(
+			routes.map(async route => {
+				const directionResponse = await axios.get(
+					`http://www.ctabustracker.com/bustime/api/v2/getdirections?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&format=json`
+				);
+
+				const directions = directionResponse.data[
+					"bustime-response"
+				].directions.map(dir => dir.dir);
+				route.directions = directions;
+
+				await Promise.all(
+					directions.map(async direction => {
+						const stopsResponse = await axios.get(
+							`http://www.ctabustracker.com/bustime/api/v2/getstops?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&dir=${direction}&format=json`
+						);
+
+						stopsResponse.data["bustime-response"].stops.forEach(stop => {
+							const stopName = stop.stpnm;
+							const stopId = stop.stpid;
+
+							if (!route.stops[stopName]) {
+								route.stops[stopName] = {
+									directions: {},
+									dropdownOn: false
+								};
+							}
+
+							route.stops[stopName].directions[direction] = {
+								stopId: stopId,
+								predictions: []
+							};
+						});
+					})
+				);
+
+				return route;
+			})
+		);
+	};
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
@@ -96,11 +143,6 @@ function Busses() {
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
 				);
-
-				// console.log(
-				//   "First 3 Routes:",
-				//   routesResponse.data["bustime-response"].routes.slice(0, 3)
-				// );
 
 				const routesData = routesResponse.data["bustime-response"].routes.map(
 					route => ({
@@ -113,47 +155,15 @@ function Busses() {
 					})
 				);
 
-				const routesWithDirectionsAndStops = await Promise.all(
-					routesData.map(async route => {
-						const directionResponse = await axios.get(
-							`http://www.ctabustracker.com/bustime/api/v2/getdirections?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&format=json`
-						);
+				// Store all routes
+				setAllRoutes(routesData);
+				
+				// Process and display first page
+				const firstPageRoutes = routesData.slice(0, ROUTES_PER_PAGE);
+				const processedRoutes = await processRouteData(firstPageRoutes);
+				setDisplayedRoutes(processedRoutes);
+				setCurrentPage(1);
 
-						const directions = directionResponse.data[
-							"bustime-response"
-						].directions.map(dir => dir.dir);
-						route.directions = directions;
-
-						await Promise.all(
-							directions.map(async direction => {
-								const stopsResponse = await axios.get(
-									`http://www.ctabustracker.com/bustime/api/v2/getstops?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${route.routeNum}&dir=${direction}&format=json`
-								);
-
-								stopsResponse.data["bustime-response"].stops.forEach(stop => {
-									const stopName = stop.stpnm;
-									const stopId = stop.stpid;
-
-									if (!route.stops[stopName]) {
-										route.stops[stopName] = {
-											directions: {},
-											dropdownOn: false
-										};
-									}
-
-									route.stops[stopName].directions[direction] = {
-										stopId: stopId,
-										predictions: []
-									};
-								});
-							})
-						);
-
-						return route;
-					})
-				);
-
-				setRoutes(routesWithDirectionsAndStops);
 			} catch (error) {
 				console.error("Error fetching bus route data:", error);
 			} finally {
@@ -164,6 +174,30 @@ function Busses() {
 		fetchRoutes();
 		
 	}, []);
+
+	const loadMoreRoutes = async () => {
+		if (isLoadingMore) return;
+		
+		const startIndex = currentPage * ROUTES_PER_PAGE;
+		const endIndex = startIndex + ROUTES_PER_PAGE;
+		
+		if (startIndex >= allRoutes.length) return;
+		
+		setIsLoadingMore(true);
+		
+		try {
+			const nextPageRoutes = allRoutes.slice(startIndex, endIndex);
+			const processedRoutes = await processRouteData(nextPageRoutes);
+			
+			setDisplayedRoutes(prevRoutes => [...prevRoutes, ...processedRoutes]);
+			setCurrentPage(prevPage => prevPage + 1);
+			
+		} catch (error) {
+			console.error("Error loading more routes:", error);
+		} finally {
+			setIsLoadingMore(false);
+		}
+	};
 
 	useFocusEffect(
 		useCallback(() => {
@@ -200,13 +234,11 @@ function Busses() {
 				? response.data["bustime-response"].prd
 				: [];
 
-			//console.log(predictions);
-
 			const filteredPredictions = predictions.filter(
 				prediction => prediction.rtdir === direction
 			);
 
-			setRoutes(prevRoutes =>
+			setDisplayedRoutes(prevRoutes =>
 				prevRoutes.map(route => {
 					if (route.routeNum === routeNum) {
 						const stopName = Object.keys(route.stops).find(name =>
@@ -258,12 +290,12 @@ function Busses() {
 
 	const sections = useMemo(
 		() =>
-			routes.map(route => ({
+			displayedRoutes.map(route => ({
 				...route,
 				data: route.dropdownOn ? filterStops(route) : [],
 				key: route.routeNum
 			})),
-		[routes, filterStops]
+		[displayedRoutes, filterStops]
 	);
 
 	const isFavorite = (routeNum, stopName) => {
@@ -280,15 +312,14 @@ function Busses() {
 				  ([direction, data]) => [direction, data.stopId]
 				)
 			);
-			//console.log(dirWithStops)
 			const favoriteItem = {
 				id: `${route.routeNum}-${stopName}`, 
 				name: `${route.routeName} - ${stopName}`,
 				type: 'bus',
 				color: route.routeClr,
 				stopIds: dirWithStops,
-				routeNumber: route.routeNum,  //use for predictions
-				isExpanded: false  // Add isExpanded property with default value
+				routeNumber: route.routeNum,
+				isExpanded: false
 			};
 
 			// Get current favorites
@@ -319,7 +350,7 @@ function Busses() {
 	};
 
 	const toggleRouteDropdown = useCallback(routeNum => {
-		setRoutes(prevRoutes =>
+		setDisplayedRoutes(prevRoutes =>
 			prevRoutes.map(route =>
 				route.routeNum === routeNum
 					? { ...route, dropdownOn: !route.dropdownOn }
@@ -329,12 +360,12 @@ function Busses() {
 	}, []);
 
 	const toggleStopDropdown = useCallback((stopName, routeNum) => {
-		setRoutes(prevRoutes =>
+		setDisplayedRoutes(prevRoutes =>
 			prevRoutes.map(route => {
 				
 				if (route.routeNum === routeNum) {
 					const isExpanding = !route.stops[stopName].dropdownOn;
-					//console.log(Object.entries(route.stops[stopName].directions))
+					
 					if (isExpanding) {
 						Object.entries(route.stops[stopName].directions).forEach(
 							([direction, data]) => {
@@ -412,6 +443,8 @@ function Busses() {
 		[toggleStopDropdown, toggleFavorite, isFavorite]
 	);
 
+	const hasMoreRoutes = currentPage * ROUTES_PER_PAGE < allRoutes.length;
+
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			<StatusBar barStyle="dark-content" />
@@ -425,6 +458,9 @@ function Busses() {
 					<>
 						<View style={styles.header}>
 							<Text style={styles.headerTitle}>Chicago Bus Routes</Text>
+							<Text style={styles.routeCounter}>
+								Showing {displayedRoutes.length} of {allRoutes.length} routes
+							</Text>
 						</View>
 						<View style={styles.searchContainer}>
 							<Ionicons
@@ -443,23 +479,38 @@ function Busses() {
 							/>
 						</View>
 						{search.length > 0 &&
-						routes.flatMap(route => filterStops(route)).length < 1 ? (
+						displayedRoutes.flatMap(route => filterStops(route)).length < 1 ? (
 							<Text style={styles.noMatch}>No Matching Stops</Text>
 						) : (
-							<SectionList
-								sections={sections}
-								keyExtractor={(item, index) => `${item}-${index}`}
-								renderSectionHeader={renderSectionHeader}
-								renderItem={renderItem}
-								initialNumToRender={20}
-								maxToRenderPerBatch={20}
-								windowSize={20}
-								getItemLayout={(data, index) => ({
-									length: 60,
-									offset: 60 * index,
-									index
-								})}
-							/>
+							<>
+								<SectionList
+									sections={sections}
+									keyExtractor={(item, index) => `${item}-${index}`}
+									renderSectionHeader={renderSectionHeader}
+									renderItem={renderItem}
+									initialNumToRender={10}
+									maxToRenderPerBatch={10}
+									windowSize={10}
+									removeClippedSubviews={true}
+								/>
+								{hasMoreRoutes && (
+									<View style={styles.loadMoreContainer}>
+										<TouchableOpacity
+											style={styles.loadMoreButton}
+											onPress={loadMoreRoutes}
+											disabled={isLoadingMore}
+										>
+											{isLoadingMore ? (
+												<ActivityIndicator size="small" color="#007AFF" />
+											) : (
+												<Text style={styles.loadMoreText}>
+													Load More Routes ({allRoutes.length - displayedRoutes.length} remaining)
+												</Text>
+											)}
+										</TouchableOpacity>
+									</View>
+								)}
+							</>
 						)}
 					</>
 				)}
@@ -484,6 +535,11 @@ const styles = StyleSheet.create({
 		fontSize: 24,
 		fontWeight: "bold",
 		color: "#333"
+	},
+	routeCounter: {
+		fontSize: 14,
+		color: "#666",
+		marginTop: 4
 	},
 	searchContainer: {
 		flexDirection: "row",
@@ -608,6 +664,24 @@ const styles = StyleSheet.create({
 	},
 	favoriteButton: {
 		padding: 8,
+	},
+	loadMoreContainer: {
+		paddingVertical: 16,
+		alignItems: 'center'
+	},
+	loadMoreButton: {
+		backgroundColor: '#007AFF',
+		paddingHorizontal: 24,
+		paddingVertical: 12,
+		borderRadius: 8,
+		minHeight: 44,
+		justifyContent: 'center',
+		alignItems: 'center'
+	},
+	loadMoreText: {
+		color: '#fff',
+		fontSize: 16,
+		fontWeight: '600'
 	}
 });
 
