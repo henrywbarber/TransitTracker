@@ -8,7 +8,8 @@ import {
 	ActivityIndicator,
 	SectionList,
 	SafeAreaView,
-	StatusBar
+	StatusBar,
+	Alert
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
@@ -316,7 +317,7 @@ function Busses() {
 
 	const toggleFavorite = async (stopName, stopId, route) => {
 		try {
-			console.log(stopName)
+			console.log("[Busses] toggling favorite for " + stopName)
 
 			const dirWithStops = Object.fromEntries(
 				Object.entries(route.stops[stopName].directions).map(
@@ -344,17 +345,38 @@ function Busses() {
 
 			if (isFavorited) {
 				// Remove from favorites
-				tempFavs = tempFavs.filter(
-					fav => !(fav.id === favoriteItem.id && fav.type === 'bus')
-				);
+				Alert.alert(
+					"Remove Favorite",
+					`Are you sure you want to remove ${stopName} from your favorites?`,
+					[
+						{
+							text: "Cancel",
+							style: "cancel"
+						},
+						{
+							text: "Remove",
+							sytle: "destructive",
+							onPress: async () => {
+								tempFavs = tempFavs.filter(
+									fav => !(fav.id === favoriteItem.id && fav.type === "bus")
+								);
+								// Save updated favorites
+								await AsyncStorage.setItem(
+									"favorites",
+									JSON.stringify(tempFavs)
+								);
+								setFavorites(tempFavs);
+							}
+						}
+					]
+				)	
 			} else {
 				// Add to favorites
 				tempFavs.push(favoriteItem);
+				// Save updated favorites
+				await AsyncStorage.setItem("favorites", JSON.stringify(tempFavs));
+				setFavorites(tempFavs);
 			}
-
-			// Save updated favorites
-			await AsyncStorage.setItem('favorites', JSON.stringify(tempFavs));
-			setFavorites(tempFavs);
 		} catch (error) {
 			console.error('Error toggling favorite:', error);
 		}
