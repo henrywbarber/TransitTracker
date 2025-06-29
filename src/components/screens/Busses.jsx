@@ -87,6 +87,7 @@ function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [allRoutes, setAllRoutes] = useState([]);
 	const [displayedRoutes, setDisplayedRoutes] = useState([]);
 	const [currentPage, setCurrentPage] = useState(0);
@@ -277,6 +278,15 @@ function Busses() {
 		}
 	};
 
+	const fetchAllPredictions = async () => {
+		setIsRefreshing(true);
+		console.log("[Busses] Manual refresh triggered");
+		// TODO: implement logic later
+		setTimeout(() => {
+			setIsRefreshing(false);
+		}, 500); // Temporary delay to simulate refresh
+	};
+
 	const filterStops = useCallback(
 		route => {
 			if (!search) return Object.keys(route.stops);
@@ -453,8 +463,25 @@ function Busses() {
 
 	return (
 		<SafeAreaView style={styles.safeArea}>
-			<StatusBar barStyle="dark-content" />
+			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 			<View style={styles.container}>
+				<View style={styles.header}>
+					<Text style={styles.headerTitle}>Chicago Bus Routes</Text>
+					<TouchableOpacity
+						onPress={fetchAllPredictions}
+						style={styles.refreshButton}
+						disabled={isRefreshing}
+					>
+						{isRefreshing ? (
+							<ActivityIndicator size="small" color="#007AFF" />
+						) : (
+							<Ionicons name="refresh" size={24} color="#007AFF" />
+						)}
+					</TouchableOpacity>
+					{/* <Text style={styles.routeCounter}>
+						Showing {displayedRoutes.length} of {allRoutes.length} routes
+					</Text> */}
+				</View>
 				{isLoading ? (
 					<View style={styles.loadingContainer}>
 						<ActivityIndicator size="large" color="#007AFF" />
@@ -462,12 +489,6 @@ function Busses() {
 					</View>
 				) : (
 					<>
-						<View style={styles.header}>
-							<Text style={styles.headerTitle}>Chicago Bus Routes</Text>
-							<Text style={styles.routeCounter}>
-								Showing {displayedRoutes.length} of {allRoutes.length} routes
-							</Text>
-						</View>
 						<View style={styles.searchContainer}>
 							<Ionicons
 								name="search"
@@ -518,7 +539,8 @@ function Busses() {
 												<ActivityIndicator size="small" color="#007AFF" />
 											) : (
 												<Text style={styles.loadMoreText}>
-													Load More Routes ({allRoutes.length - displayedRoutes.length} remaining)
+													Load More Routes (
+													{allRoutes.length - displayedRoutes.length} remaining)
 												</Text>
 											)}
 										</TouchableOpacity>
@@ -540,15 +562,29 @@ const styles = StyleSheet.create({
 	},
 	container: {
 		flex: 1,
-		padding: 16
+		paddingHorizontal: 12
 	},
 	header: {
-		marginBottom: 16
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		height: 56,
+		borderBottomWidth: 1,
+		borderBottomColor: "#EEEEEE"
 	},
 	headerTitle: {
-		fontSize: 24,
+		fontSize: 28,
 		fontWeight: "bold",
-		color: "#333"
+		color: "#333333"
+	},
+	refreshButton: {
+		padding: 6,
+		borderRadius: 20,
+		backgroundColor: "#F0F8FF",
+		width: 36,
+		height: 36,
+		alignItems: "center",
+		justifyContent: "center"
 	},
 	routeCounter: {
 		fontSize: 14,
@@ -561,6 +597,7 @@ const styles = StyleSheet.create({
 		backgroundColor: "#fff",
 		borderRadius: 8,
 		paddingHorizontal: 12,
+		marginTop: 12,
 		marginBottom: 16,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: 2 },
@@ -671,31 +708,31 @@ const styles = StyleSheet.create({
 		color: "#666"
 	},
 	stopHeader: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		width: '100%'
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		width: "100%"
 	},
 	favoriteButton: {
-		padding: 8,
+		padding: 8
 	},
 	loadMoreContainer: {
 		paddingVertical: 16,
-		alignItems: 'center'
+		alignItems: "center"
 	},
 	loadMoreButton: {
-		backgroundColor: '#007AFF',
+		backgroundColor: "#007AFF",
 		paddingHorizontal: 24,
 		paddingVertical: 12,
 		borderRadius: 8,
 		minHeight: 44,
-		justifyContent: 'center',
-		alignItems: 'center'
+		justifyContent: "center",
+		alignItems: "center"
 	},
 	loadMoreText: {
-		color: '#fff',
+		color: "#fff",
 		fontSize: 16,
-		fontWeight: '600'
+		fontWeight: "600"
 	}
 });
 
