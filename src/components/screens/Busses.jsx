@@ -87,14 +87,9 @@ const SectionHeader = React.memo(({ section, onToggle }) => (
 function Busses() {
 	const [search, setSearch] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
-	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [allRoutes, setAllRoutes] = useState([]);
-	const [displayedRoutes, setDisplayedRoutes] = useState([]);
-	const [currentPage, setCurrentPage] = useState(0);
 	const [favorites, setFavorites] = useState([]);
-	
-	const ROUTES_PER_PAGE = 20;
 
 	const processRouteData = async (routes) => {
 		return Promise.all(
@@ -140,7 +135,7 @@ function Busses() {
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
-			console.log("[Busses] Fetched all routes")
+			console.log("[Busses] Fetching all routes")
 			try {
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
@@ -157,14 +152,11 @@ function Busses() {
 					})
 				);
 
-				// Store all routes
-				setAllRoutes(routesData);
+				console.log(`[Busses] Processing ${routesData.length} routes`);
 				
-				// Process and display first page
-				const firstPageRoutes = routesData.slice(0, ROUTES_PER_PAGE);
-				const processedRoutes = await processRouteData(firstPageRoutes);
-				setDisplayedRoutes(processedRoutes);
-				setCurrentPage(1);
+				// Process all routes at once
+				const processedRoutes = await processRouteData(routesData);
+				setAllRoutes(processedRoutes);
 
 			} catch (error) {
 				console.error("Error fetching bus route data:", error);
@@ -176,30 +168,6 @@ function Busses() {
 		fetchRoutes();
 		
 	}, []);
-
-	const loadMoreRoutes = async () => {
-		if (isLoadingMore) return;
-		
-		const startIndex = currentPage * ROUTES_PER_PAGE;
-		const endIndex = startIndex + ROUTES_PER_PAGE;
-		
-		if (startIndex >= allRoutes.length) return;
-		
-		setIsLoadingMore(true);
-		
-		try {
-			const nextPageRoutes = allRoutes.slice(startIndex, endIndex);
-			const processedRoutes = await processRouteData(nextPageRoutes);
-			
-			setDisplayedRoutes(prevRoutes => [...prevRoutes, ...processedRoutes]);
-			setCurrentPage(prevPage => prevPage + 1);
-			
-		} catch (error) {
-			console.error("Error loading more routes:", error);
-		} finally {
-			setIsLoadingMore(false);
-		}
-	};
 
 	useFocusEffect(
 		useCallback(() => {
@@ -240,7 +208,7 @@ function Busses() {
 				prediction => prediction.rtdir === direction
 			);
 
-			setDisplayedRoutes(prevRoutes =>
+			setAllRoutes(prevRoutes =>
 				prevRoutes.map(route => {
 					if (route.routeNum === routeNum) {
 						const stopName = Object.keys(route.stops).find(name =>
@@ -301,13 +269,13 @@ function Busses() {
 
 	const sections = useMemo(
 		() =>
-			displayedRoutes.map((route, index) => ({
+			allRoutes.map((route, index) => ({
 				...route,
 				data: route.dropdownOn ? filterStops(route) : [],
 				key: `${route.routeNum}-${index}`, // More unique key
 				sectionIndex: index // Add section index for better tracking
 			})),
-		[displayedRoutes, filterStops]
+		[allRoutes, filterStops]
 	);
 
 	const isFavorite = (routeNum, stopName) => {
@@ -383,7 +351,7 @@ function Busses() {
 	};
 
 	const toggleRouteDropdown = useCallback(routeNum => {
-		setDisplayedRoutes(prevRoutes =>
+		setAllRoutes(prevRoutes =>
 			prevRoutes.map(route =>
 				route.routeNum === routeNum
 					? { ...route, dropdownOn: !route.dropdownOn }
@@ -393,7 +361,7 @@ function Busses() {
 	}, []);
 
 	const toggleStopDropdown = useCallback((stopName, routeNum) => {
-		setDisplayedRoutes(prevRoutes =>
+		setAllRoutes(prevRoutes =>
 			prevRoutes.map(route => {
 				
 				if (route.routeNum === routeNum) {
@@ -481,8 +449,6 @@ function Busses() {
 		[toggleStopDropdown, toggleFavorite, isFavorite]
 	);
 
-	const hasMoreRoutes = currentPage * ROUTES_PER_PAGE < allRoutes.length;
-
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -500,14 +466,11 @@ function Busses() {
 							<Ionicons name="refresh" size={24} color="#007AFF" />
 						)}
 					</TouchableOpacity>
-					{/* <Text style={styles.routeCounter}>
-						Showing {displayedRoutes.length} of {allRoutes.length} routes
-					</Text> */}
 				</View>
 				{isLoading ? (
 					<View style={styles.loadingContainer}>
 						<ActivityIndicator size="large" color="#007AFF" />
-						<Text style={styles.loadingText}>Loading Bus Routes...</Text>
+						<Text style={styles.loadingText}>Loading All Bus Routes...</Text>
 					</View>
 				) : (
 					<>
@@ -528,47 +491,27 @@ function Busses() {
 							/>
 						</View>
 						{search.length > 0 &&
-						displayedRoutes.flatMap(route => filterStops(route)).length < 1 ? (
+						allRoutes.flatMap(route => filterStops(route)).length < 1 ? (
 							<Text style={styles.noMatch}>No Matching Stops</Text>
 						) : (
-							<>
-								<SectionList
-									sections={sections}
-									keyExtractor={(item, index, section) => {
-										const sectionKey = section?.key || `section-${index}`;
-										return `${sectionKey}-${item}-${index}`;
-									}}
-									renderSectionHeader={renderSectionHeader}
-									renderItem={renderItem}
-									stickySectionHeadersEnabled={false}
-									initialNumToRender={8}
-									maxToRenderPerBatch={8}
-									windowSize={8}
-									updateCellsBatchingPeriod={100}
-									removeClippedSubviews={false}
-									getItemLayout={null}
-									legacyImplementation={false}
-									disableVirtualization={false}
-								/>
-								{hasMoreRoutes && (
-									<View style={styles.loadMoreContainer}>
-										<TouchableOpacity
-											style={styles.loadMoreButton}
-											onPress={loadMoreRoutes}
-											disabled={isLoadingMore}
-										>
-											{isLoadingMore ? (
-												<ActivityIndicator size="small" color="#007AFF" />
-											) : (
-												<Text style={styles.loadMoreText}>
-													Load More Routes (
-													{allRoutes.length - displayedRoutes.length} remaining)
-												</Text>
-											)}
-										</TouchableOpacity>
-									</View>
-								)}
-							</>
+							<SectionList
+								sections={sections}
+								keyExtractor={(item, index, section) => {
+									const sectionKey = section?.key || `section-${index}`;
+									return `${sectionKey}-${item}-${index}`;
+								}}
+								renderSectionHeader={renderSectionHeader}
+								renderItem={renderItem}
+								stickySectionHeadersEnabled={false}
+								initialNumToRender={10}
+								maxToRenderPerBatch={10}
+								windowSize={10}
+								updateCellsBatchingPeriod={100}
+								removeClippedSubviews={true}
+								getItemLayout={null}
+								legacyImplementation={false}
+								disableVirtualization={false}
+							/>
 						)}
 					</>
 				)}
@@ -737,24 +680,6 @@ const styles = StyleSheet.create({
 	},
 	favoriteButton: {
 		padding: 8
-	},
-	loadMoreContainer: {
-		paddingVertical: 16,
-		alignItems: "center"
-	},
-	loadMoreButton: {
-		backgroundColor: "#007AFF",
-		paddingHorizontal: 24,
-		paddingVertical: 12,
-		borderRadius: 8,
-		minHeight: 44,
-		justifyContent: "center",
-		alignItems: "center"
-	},
-	loadMoreText: {
-		color: "#fff",
-		fontSize: 16,
-		fontWeight: "600"
 	}
 });
 
