@@ -14,6 +14,7 @@ import {
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import { FontAwesome } from "@expo/vector-icons";
+import { DateTime } from "luxon";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -278,7 +279,7 @@ function Trains() {
 			console.log("[Trains] Expanded stations count:", expandedStations.length);
 
 			if (expandedStations.length === 0) {
-        setIsRefreshing(false);
+				setIsRefreshing(false);
 				console.log("[Trains] No expanded stations, skipping fetch");
 				return;
 			}
@@ -484,22 +485,15 @@ function Trains() {
 		search.length > 0 ? null : (
 			<TouchableOpacity
 				onPress={() => toggleDropdown(section.title)}
-				style={styles.sectionHeaderContainer}
+				activeOpacity={0.7}
+				style={[styles.sectionCard, { borderLeftColor: section.color }]}
 			>
-				<View
-					style={[
-						styles.stationColorIndicator,
-						{ backgroundColor: section.color }
-					]}
+				<Text style={styles.sectionTitle}>{section.title} Line</Text>
+				<Ionicons
+					name={section.data.length > 0 ? "chevron-up" : "chevron-down"}
+					size={24}
+					color="#666"
 				/>
-				<View style={styles.sectionHeaderContent}>
-					<Text style={styles.lineTitle}>{section.title} Line</Text>
-					<Ionicons
-						name={section.data.length > 0 ? "chevron-up" : "chevron-down"}
-						size={24}
-						color="#666"
-					/>
-				</View>
 			</TouchableOpacity>
 		);
 
@@ -507,15 +501,13 @@ function Trains() {
 		<TouchableOpacity
 			onPress={() => toggleStopDropdown(item)}
 			activeOpacity={0.7}
+			key={`${section.key}-${item}`} // Unique key for each item
 		>
 			<View style={styles.stationCard}>
 				<View
 					style={[
 						styles.stationColorIndicator,
-						{
-							backgroundColor:
-								search.length > 0 ? item.line_color : section.color
-						}
+						{ backgroundColor: item.line_color }
 					]}
 				/>
 				<View style={styles.stationInfo}>
@@ -612,6 +604,7 @@ function Trains() {
 														<Text style={styles.directionHeader}>
 															{direction}
 														</Text>
+
 														<View style={styles.tableHeader}>
 															<Text
 																style={[styles.tableHeaderCell, { flex: 1 }]}
@@ -633,11 +626,19 @@ function Trains() {
 															</Text>
 														</View>
 														{predictions.map((prediction, index) => {
-															const arrivalTime = new Date(prediction.arrT);
-															const currentTime = new Date();
-															const timeDiff = Math.round(
-																(arrivalTime - currentTime) / 60000
+															const currentTime =
+																DateTime.now().setZone("America/Chicago");
+															const arrivalTime = DateTime.fromISO(
+																prediction.arrT,
+																{
+																	zone: "America/Chicago"
+																}
 															);
+
+															const timeDiff = Math.round(
+																arrivalTime.diff(currentTime, "minutes").minutes
+															);
+
 															const isDue =
 																prediction.isApp === "1" || timeDiff <= 2;
 
@@ -703,7 +704,7 @@ function Trains() {
 						style={styles.refreshButton}
 						disabled={isRefreshing}
 					>
-						{ (isRefreshing) ? (
+						{isRefreshing ? (
 							<ActivityIndicator size="small" color="#007AFF" />
 						) : (
 							<Ionicons name="refresh" size={24} color="#007AFF" />
@@ -827,27 +828,22 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		padding: 15
 	},
-	sectionHeaderContainer: {
+	sectionCard: {
 		flexDirection: "row",
-		alignItems: "stretch",
+		justifyContent: "space-between",
+		alignItems: "center",
 		backgroundColor: "#fff",
+		padding: 12,
 		borderRadius: 8,
 		marginBottom: 8,
+		borderLeftWidth: 6,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.1,
 		shadowRadius: 4,
-		elevation: 3,
-		overflow: "hidden"
+		elevation: 3
 	},
-	sectionHeaderContent: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		padding: 12,
-		flex: 1
-	},
-	lineTitle: {
+	sectionTitle: {
 		fontSize: 18,
 		fontWeight: "bold",
 		color: "#333"
@@ -856,22 +852,25 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "stretch",
 		backgroundColor: "#FFFFFF",
-		borderRadius: 12,
-		marginBottom: 12,
-		marginLeft: 6,
+		borderRadius: 8,
+		marginBottom: 8,
+		padding: 8,
 		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
+		shadowOffset: { width: 0, height: 1 },
 		shadowOpacity: 0.1,
-		shadowRadius: 4,
-		elevation: 3,
-		overflow: "hidden"
+		shadowRadius: 2,
+		elevation: 2
+		// overflow: "hidden"
 	},
 	stationColorIndicator: {
-		width: 6
+		width: 4,
+		height: "100%",
+		borderRadius: 4,
+		marginRight: 12
 	},
 	stationInfo: {
-		flex: 1,
-		padding: 12
+		flex: 1
+		// padding: 12
 	},
 	stationHeader: {
 		flexDirection: "row",
@@ -881,7 +880,7 @@ const styles = StyleSheet.create({
 	},
 	stationMainContent: {
 		flex: 1,
-		paddingRight: 8,
+		paddingRight: 18,
 		gap: 2
 	},
 	stationName: {
@@ -931,7 +930,7 @@ const styles = StyleSheet.create({
 	stopPredictionsContainer: {
 		borderBottomWidth: 1,
 		borderBottomColor: "#EEEEEE",
-		marginBottom: 8
+		marginBottom: 10
 	},
 	directionContainer: {
 		marginBottom: 8

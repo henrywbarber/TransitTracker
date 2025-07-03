@@ -13,6 +13,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+import { DateTime } from "luxon";
 import { useFocusEffect } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
@@ -309,11 +310,19 @@ function Home() {
 												</Text>
 											</View>
 											{predictions.map((prediction, index) => {
-												const arrivalTime = new Date(prediction.arrivalTime);
-												const currentTime = new Date();
-												const timeDiff = Math.round(
-													(arrivalTime - currentTime) / 60000
+												const currentTime =
+													DateTime.now().setZone("America/Chicago");
+												const arrivalTime = DateTime.fromISO(
+													prediction.arrivalTime,
+													{
+														zone: "America/Chicago"
+													}
 												);
+
+												const timeDiff = Math.round(
+													arrivalTime.diff(currentTime, "minutes").minutes
+												);
+
 												const isDue = prediction.isApproaching || timeDiff <= 2;
 
 												return (
