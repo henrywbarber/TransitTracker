@@ -490,12 +490,24 @@ function Busses() {
 															</Text>
 														</View>
 														{predictions.map((prediction, index) => {
-															const isDelayed = prediction.dly === "1";
-															const etaText =
-																prediction.prdctdn === "DUE" ||
-																parseInt(prediction.prdctdn) <= 2
-																	? "DUE"
-																	: `${prediction.prdctdn} min`;
+															const isDelayed = prediction.dly === "1" || prediction.dly === true;
+															
+															// Fix the ETA text logic
+															let etaText;
+															if (prediction.prdctdn === "DUE") {
+																etaText = "DUE";
+															} else if (prediction.prdctdn === "DLY") {
+																etaText = "DELAYED";
+															} else {
+																const minutes = parseInt(prediction.prdctdn);
+																if (isNaN(minutes)) {
+																	etaText = "N/A";
+																} else if (minutes <= 2) {
+																	etaText = "DUE";
+																} else {
+																	etaText = `${minutes} min`;
+																}
+															}
 
 															return (
 																<View
@@ -518,7 +530,8 @@ function Busses() {
 																			style={[
 																				styles.etaText,
 																				isDelayed && styles.delayedText,
-																				etaText === "DUE" && styles.dueText
+																				etaText === "DUE" && styles.dueText,
+																				etaText === "DELAYED" && styles.delayedText
 																			]}
 																		>
 																			{etaText}
@@ -727,12 +740,15 @@ const styles = StyleSheet.create({
 	stopName: {
 		fontSize: 18,
 		fontWeight: "bold",
-		color: "#333"
+		color: "#333",
+		marginRight: 8,
+		flex: 1,
 	},
 	iconContainer: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: 0
+		gap: 0,
+		flexShrink: 0,
 	},
 	favoriteButton: {
 		padding: 6,
@@ -792,7 +808,6 @@ const styles = StyleSheet.create({
 	},
 	stopHeader: {
 		flexDirection: "row",
-		justifyContent: "space-between",
 		alignItems: "center",
 		width: "100%"
 	},

@@ -394,12 +394,22 @@ function Home() {
 									</Text>
 								</View>
 								{predictions.map((prediction, index) => {
-									const isDelayed = prediction.dly === "1";
-									const etaText =
-										prediction.prdctdn === "DUE" ||
-										parseInt(prediction.prdctdn) <= 2
-											? "DUE"
-											: `${prediction.prdctdn} min`;
+									const isDelayed = prediction.dly === "1" || prediction.dly === true;
+									let etaText;
+									if (prediction.prdctdn === "DUE") {
+										etaText = "DUE";
+									} else if (prediction.prdctdn === "DLY") {
+										etaText = "DELAYED";
+									} else {
+										const minutes = parseInt(prediction.prdctdn);
+										if (isNaN(minutes)) {
+											etaText = "N/A";
+										} else if (minutes <= 2) {
+											etaText = "DUE";
+										} else {
+											etaText = `${minutes} min`;
+										}
+									}
 
 									return (
 										<View
