@@ -16,64 +16,16 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 
-const PredictionRow = React.memo(({ prediction }) => {
-	const etaTextStyle = [styles.predictionText, styles.boldText, { textAlign: 'right' }];
-	if (prediction.dly === "1") {
-		etaTextStyle.push({ color: "#FF3B30" });
-	} else if (prediction.prdctdn <= 2 || prediction.prdctdn === "DUE") {
-		etaTextStyle.push({ color: "#34C759" });
-	}
-
-	return (
-		<View style={styles.predictionRow}>
-			<Text style={styles.predictionText}>{prediction.vid}</Text>
-			<Text style={styles.predictionText}>{prediction.des}</Text>
-			<Text style={etaTextStyle}>
-				{prediction.prdctdn <= 2 || prediction.prdctdn === "DUE"
-					? "DUE"
-					: `${prediction.prdctdn} min`}
-			</Text>
-		</View>
-	);
-});
-
-const StopDirections = React.memo(({ directions, stopData }) => {
-	return Object.entries(directions).map(([direction, data]) => (
-		<View key={direction} style={{ paddingTop: 10 }}>
-			<Text style={styles.stopPredictionTitle}>{direction}</Text>
-			<View style={styles.predictionTableHeader}>
-				<Text style={[styles.predictionText, styles.boldText]}>Bus</Text>
-				<Text style={[styles.predictionText, styles.boldText]}>
-					Destination
-				</Text>
-				<Text style={[styles.predictionText, styles.boldText, { textAlign: 'right' }]}>ETA</Text>
-			</View>
-			{data.predictions.length > 0 ? (
-				data.predictions.map((prediction, index) => (
-					<PredictionRow
-						key={`${prediction.vid}-${index}`}
-						prediction={prediction}
-					/>
-				))
-			) : (
-				<Text style={[styles.predictionText, { padding: 10 }]}>
-					No predictions available.
-				</Text>
-			)}
-		</View>
-	));
-}, (prevProps, nextProps) => {
-	// Custom comparison function to prevent unnecessary re-renders
-	// Only re-render if the predictions have changed
-	return JSON.stringify(prevProps.directions) === JSON.stringify(nextProps.directions);
-});
-
 const SectionHeader = React.memo(({ section, onToggle }) => (
 	<TouchableOpacity
 		onPress={() => onToggle(section.routeNum)}
-		style={[styles.sectionHeader, { borderLeftColor: section.routeClr }]}
+		activeOpacity={0.7}
+		style={[
+			styles.sectionCard,
+			{ borderLeftColor: section.routeClr }
+		]}
 	>
-		<Text style={styles.routeTitle}>
+		<Text style={styles.sectionTitle}>
 			{section.routeNum} - {section.routeName}
 		</Text>
 		<Ionicons
@@ -248,13 +200,37 @@ function Busses() {
 	};
 
 	const fetchAllPredictions = async () => {
+		console.log("[Busses] Fetching predictions for expanded stops only");
 		setIsRefreshing(true);
-		console.log("[Busses] Manual refresh triggered");
-		// TODO: implement logic later
-		setTimeout(() => {
+
+		try {
+			// Fetch predictions for stopId's with dropdownOn in parallel
+			const promises = [];
+
+			for (const route of allRoutes) {
+				for (const [stopName, stopData] of Object.entries(route.stops)) {
+					if (stopData.dropdownOn) {
+						for (const [direction, dirData] of Object.entries(
+							stopData.directions
+						)) {
+							promises.push(
+								fetchStopPredictions(dirData.stopId, route.routeNum, direction)
+							);
+						}
+					}
+				}
+			}
+
+			await Promise.all(promises);
+		} catch (error) {
+			console.error("[Busses] Error during fetchAllPredictions:", error);
+		} finally {
 			setIsRefreshing(false);
-		}, 500); // Temporary delay to simulate refresh
+			console.log("[Busses] Done fetching expanded predictions");
+		}
 	};
+	
+	
 
 	const filterStops = useCallback(
 		route => {
@@ -267,16 +243,38 @@ function Busses() {
 		[search]
 	);
 
-	const sections = useMemo(
-		() =>
-			allRoutes.map((route, index) => ({
-				...route,
-				data: route.dropdownOn ? filterStops(route) : [],
-				key: `${route.routeNum}-${index}`, // More unique key
-				sectionIndex: index // Add section index for better tracking
-			})),
-		[allRoutes, filterStops]
-	);
+	const sections = useMemo(() => {
+		const searchLower = search.toLowerCase();
+
+		return allRoutes
+			.map((route, index) => {
+				const routeNameMatches = route.routeName
+					.toLowerCase()
+					.includes(searchLower);
+				const stopMatches = Object.keys(route.stops).filter(stopName =>
+					stopName.toLowerCase().includes(searchLower)
+				);
+
+				// Decide which stops to include
+				const data = routeNameMatches
+					? Object.keys(route.stops) // full list of stops
+					: stopMatches; // filtered stop list
+
+				// If route name or any stop matches, include this section
+				if (routeNameMatches || stopMatches.length > 0) {
+					return {
+						...route,
+						data: route.dropdownOn ? data : [],
+						key: `${route.routeNum}-${index}`,
+						sectionIndex: index
+					};
+				}
+
+				return null; // exclude this route
+			})
+			.filter(Boolean); // remove nulls
+	}, [allRoutes, search]);
+	
 
 	const isFavorite = (routeNum, stopName) => {
 		const favoriteId = `${routeNum}-${stopName}`;
@@ -407,6 +405,7 @@ function Busses() {
 		({ item, section, index }) => (
 			<TouchableOpacity
 				onPress={() => toggleStopDropdown(item, section.routeNum)}
+				activeOpacity={0.7}
 				key={`${section.key}-${item}-${index}`} // Unique key for each item
 			>
 				<View style={styles.stopCard}>
@@ -419,27 +418,138 @@ function Busses() {
 					<View style={styles.stopInfo}>
 						<View style={styles.stopHeader}>
 							<Text style={styles.stopName}>{item}</Text>
-							<TouchableOpacity 
-								onPress={() => toggleFavorite(
-									item, // stopName
-									section.stops[item].directions[Object.keys(section.stops[item].directions)[0]].stopId, // stopId
-									section // route info
-								)}
-								style={styles.favoriteButton}
-							>	
-								<Ionicons 
-									name={isFavorite(section.routeNum, item) ? "heart" : "heart-outline"} 
-									size={24} 
-									color={isFavorite(section.routeNum, item) ? "red" : "#666"} 
+							<View style={styles.iconContainer}>
+								<TouchableOpacity
+									onPress={() =>
+										toggleFavorite(
+											item, // stopName
+											section.stops[item].directions[
+												Object.keys(section.stops[item].directions)[0]
+											].stopId, // stopId
+											section // route info
+										)
+									}
+									style={styles.favoriteButton}
+								>
+									<Ionicons
+										name={
+											isFavorite(section.routeNum, item)
+												? "heart"
+												: "heart-outline"
+										}
+										size={24}
+										color={isFavorite(section.routeNum, item) ? "red" : "#666"}
+									/>
+								</TouchableOpacity>
+								<Ionicons
+									name={
+										section.stops[item].dropdownOn
+											? "chevron-up"
+											: "chevron-down"
+									}
+									size={16}
+									color="#666"
+									style={styles.expandIcon}
 								/>
-							</TouchableOpacity>
+							</View>
 						</View>
 						{section.stops[item].dropdownOn && (
-							<View style={styles.expandedContent}>
-								<StopDirections
-									directions={section.stops[item].directions}
-									stopData={section.stops[item]}
-								/>
+							<View style={styles.predictionsContainer}>
+								{Object.entries(section.stops[item].directions).map(
+									([direction, data], index, array) => {
+										const { stopId, predictions } = data;
+										return (
+											<View
+												key={direction}
+												style={[
+													styles.directionContainer,
+													index === array.length - 1 && { marginBottom: 0 }
+												]}
+											>
+												<Text style={styles.directionHeader}>{direction}</Text>
+												{predictions.length > 0 ? (
+													<>
+														<View style={styles.tableHeader}>
+															<Text
+																style={[styles.tableHeaderCell, { flex: 1 }]}
+															>
+																Bus
+															</Text>
+															<Text
+																style={[styles.tableHeaderCell, { flex: 2 }]}
+															>
+																To
+															</Text>
+															<Text
+																style={[
+																	styles.tableHeaderCell,
+																	{ flex: 1, textAlign: "right" }
+																]}
+															>
+																ETA
+															</Text>
+														</View>
+														{predictions.map((prediction, index) => {
+															const isDelayed = prediction.dly === "1" || prediction.dly === true;
+															
+															// Fix the ETA text logic
+															let etaText;
+															if (prediction.prdctdn === "DUE") {
+																etaText = "DUE";
+															} else if (prediction.prdctdn === "DLY") {
+																etaText = "DELAYED";
+															} else {
+																const minutes = parseInt(prediction.prdctdn);
+																if (isNaN(minutes)) {
+																	etaText = "N/A";
+																} else if (minutes <= 2) {
+																	etaText = "DUE";
+																} else {
+																	etaText = `${minutes} min`;
+																}
+															}
+
+															return (
+																<View
+																	key={index}
+																	style={[
+																		styles.tableRow,
+																		index === predictions.length - 1 && {
+																			borderBottomWidth: 0
+																		}
+																	]}
+																>
+																	<Text style={[styles.tableCell, { flex: 1 }]}>
+																		{prediction.vid}
+																	</Text>
+																	<Text style={[styles.tableCell, { flex: 2 }]}>
+																		{prediction.des}
+																	</Text>
+																	<View style={[styles.etaContainer]}>
+																		<Text
+																			style={[
+																				styles.etaText,
+																				isDelayed && styles.delayedText,
+																				etaText === "DUE" && styles.dueText,
+																				etaText === "DELAYED" && styles.delayedText
+																			]}
+																		>
+																			{etaText}
+																		</Text>
+																	</View>
+																</View>
+															);
+														})}
+													</>
+												) : (
+													<Text style={styles.noPredictions}>
+														No predictions available
+													</Text>
+												)}
+											</View>
+										);
+									}
+								)}
 							</View>
 						)}
 					</View>
@@ -502,7 +612,7 @@ function Busses() {
 								}}
 								renderSectionHeader={renderSectionHeader}
 								renderItem={renderItem}
-								stickySectionHeadersEnabled={false}
+                                stickySectionHeadersEnabled={false}
 								initialNumToRender={10}
 								maxToRenderPerBatch={10}
 								windowSize={10}
@@ -583,7 +693,7 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		padding: 15
 	},
-	sectionHeader: {
+	sectionCard: {
 		flexDirection: "row",
 		justifyContent: "space-between",
 		alignItems: "center",
@@ -598,18 +708,18 @@ const styles = StyleSheet.create({
 		shadowRadius: 4,
 		elevation: 3
 	},
-	routeTitle: {
+	sectionTitle: {
 		fontSize: 18,
 		fontWeight: "bold",
 		color: "#333"
 	},
 	stopCard: {
 		flexDirection: "row",
-		alignItems: "center",
-		backgroundColor: "#fff",
+		alignItems: "stretch",
+		backgroundColor: "#FFFFFF",
 		borderRadius: 8,
 		marginBottom: 8,
-		padding: 12,
+		padding: 8,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: 1 },
 		shadowOpacity: 0.1,
@@ -617,7 +727,7 @@ const styles = StyleSheet.create({
 		elevation: 2
 	},
 	stopColorIndicator: {
-		width: 8,
+		width: 4,
 		height: "100%",
 		borderRadius: 4,
 		marginRight: 12
@@ -625,10 +735,43 @@ const styles = StyleSheet.create({
 	stopInfo: {
 		flex: 1
 	},
+	stationHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: 2
+	},
+	stationMainContent: {
+		flex: 1,
+		paddingRight: 8,
+		gap: 2
+	},
 	stopName: {
 		fontSize: 18,
 		fontWeight: "bold",
-		color: "#333"
+		color: "#333",
+		marginRight: 8,
+		flex: 1,
+	},
+	iconContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 0,
+		flexShrink: 0,
+	},
+	favoriteButton: {
+		padding: 6,
+		width: 36,
+		height: 36,
+		alignItems: "center",
+		justifyContent: "center"
+	},
+	expandIcon: {
+		padding: 6,
+		width: 36,
+		height: 36,
+		lineHeight: 24,
+		textAlign: "center"
 	},
 	stopPredictionTitle: {
 		fontSize: 16,
@@ -674,12 +817,106 @@ const styles = StyleSheet.create({
 	},
 	stopHeader: {
 		flexDirection: "row",
-		justifyContent: "space-between",
 		alignItems: "center",
 		width: "100%"
 	},
 	favoriteButton: {
 		padding: 8
+	},
+	predictionsContainer: {
+		marginTop: 6,
+		backgroundColor: "#F9F9F9",
+		borderRadius: 8,
+		padding: 10
+	},
+	tableHeader: {
+		flexDirection: "row",
+		paddingBottom: 6,
+		marginBottom: 2
+	},
+	tableHeaderCell: {
+		fontSize: 13,
+		fontWeight: "600",
+		color: "#666666",
+		textTransform: "uppercase",
+		textAlign: "left"
+	},
+	tableRow: {
+		flexDirection: "row",
+		paddingVertical: 6,
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: "#EEEEEE"
+	},
+	tableCell: {
+		fontSize: 15,
+		color: "#333333",
+		textAlign: "left"
+	},
+	etaContainer: {
+		flexDirection: "row",
+		justifyContent: "flex-end",
+		flex: 1
+	},
+	etaText: {
+		fontSize: 15,
+		fontWeight: "bold",
+		color: "#666666",
+		textAlign: "right"
+	},
+	delayedText: {
+		color: "#FF3B30"
+	},
+	dueText: {
+		color: "#34C759"
+	},
+	scheduledText: {
+		fontWeight: "normal"
+	},
+	noPredictions: {
+		fontSize: 15,
+		color: "#999999",
+		textAlign: "center",
+		paddingVertical: 6
+	},
+	emptyStateContainer: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+		paddingTop: 48
+	},
+	noFavorites: {
+		fontSize: 18,
+		fontWeight: "bold",
+		color: "#666666",
+		marginTop: 12,
+		marginBottom: 6
+	},
+	emptyStateSubtitle: {
+		fontSize: 14,
+		color: "#999999",
+		textAlign: "center",
+		paddingHorizontal: 24
+	},
+	directionContainer: {
+		marginBottom: 8
+	},
+	directionHeader: {
+		fontSize: 16,
+		fontWeight: "bold",
+		color: "#333333",
+		marginBottom: 6
+	},
+	stopPredictionsContainer: {
+		marginBottom: 8,
+		borderBottomWidth: 1,
+		borderBottomColor: "#EEEEEE"
+	},
+	expandIcon: {
+		marginLeft: 4
+	},
+	removedCard: {
+		opacity: 0.7,
+		backgroundColor: "#F8F8F8"
 	}
 });
 
