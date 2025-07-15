@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
 	View,
 	Text,
@@ -21,27 +21,39 @@ function Home() {
 	const [favorites, setFavorites] = useState([]);
 	const [predictions, setPredictions] = useState({});
 	const [isRefreshing, setIsRefreshing] = useState(false);
+	const favoritesRef = useRef(favorites);
+
+	// Update ref whenever favorites change
+	useEffect(() => {
+		favoritesRef.current = favorites;
+	}, [favorites]);
 
 	// Fetch favorites on page focus and fetch prediction for favorites
 	useFocusEffect(
 		React.useCallback(() => {
-			loadFavorites().then(() => {
-				if (favorites.length > 0) fetchAllPredictions();
+			loadFavorites().then(loadedFavorites => {
+				if (loadedFavorites.length > 0) {
+					fetchAllPredictions(loadedFavorites);
+				}
 			});
 		}, [])
 	);
 
-	//every minute fetchAllPredictions will run to prevent having to reload the page
+	// Every minute fetchAllPredictions will run to prevent having to reload the page
 	useEffect(() => {
 		if (favorites.length > 0) {
-			fetchAllPredictions();
+			fetchAllPredictions(favorites);
 
 			console.log("[Home] Periodic refresh triggered");
 			const interval = setInterval(() => {
 				console.log("[Home] Periodic refresh triggered");
-				fetchAllPredictions();
+				const currentFavorites = favoritesRef.current;
+				if (currentFavorites.length > 0) {
+					fetchAllPredictions(currentFavorites);
+				}
 			}, 60000);
-			return () => clearInterval(interval); //cleanup
+
+			return () => clearInterval(interval);
 		}
 	}, [favorites]);
 
@@ -50,15 +62,17 @@ function Home() {
 			const savedFavorites = await AsyncStorage.getItem("favorites");
 			if (savedFavorites) {
 				const parsedFavorites = JSON.parse(savedFavorites);
-				// Ensure each favorite has an isExpanded property
 				const favoritesWithExpandedState = parsedFavorites.map(favorite => ({
 					...favorite,
 					isExpanded: favorite.isExpanded || false
 				}));
 				setFavorites(favoritesWithExpandedState);
+				return favoritesWithExpandedState;
 			}
+			return [];
 		} catch (error) {
-			console.error("Error loading favorites:", error);
+			console.error("[Home] Error loading favorites:", error);
+			return [];
 		}
 	};
 
@@ -118,11 +132,11 @@ function Home() {
 		);
 	};
 
-	const fetchAllPredictions = async () => {
+	const fetchAllPredictions = async (favoritesToUse = favorites) => {
 		setIsRefreshing(true);
-		console.log(`[Home] Starting fetch for ${favorites.length} favorites`);
+		console.log(`[Home] Starting fetch for ${favoritesToUse.length} favorites`);
 		try {
-			const predictionPromises = favorites.map(favorite => {
+			const predictionPromises = favoritesToUse.map(favorite => {
 				if (favorite.type === "train") {
 					return fetchTrainPredictions(favorite.stopId);
 				} else {
@@ -133,13 +147,13 @@ function Home() {
 			const results = await Promise.all(predictionPromises);
 
 			const newPredictions = {};
-			favorites.forEach((favorite, index) => {
+			favoritesToUse.forEach((favorite, index) => {
 				newPredictions[favorite.id] = results[index];
 			});
 
 			setPredictions(newPredictions);
 			console.log(
-				`[Home] Successfully fetched predictions for ${favorites.length} favorites`
+				`[Home] Successfully fetched predictions for ${favoritesToUse.length} favorites`
 			);
 		} catch (error) {
 			console.error("[Home] Error fetching predictions:", error);
@@ -242,11 +256,12 @@ function Home() {
 
 	const renderTrainPredictions = trainPredictions => {
 		// Check for predictions if we have them
-		if (!trainPredictions.length) return (
-			<View style={styles.predictionsContainer}>
-				<Text style={styles.noPredictions}>No predictions available</Text>
-			</View>
-		);
+		if (!trainPredictions.length)
+			return (
+				<View style={styles.predictionsContainer}>
+					<Text style={styles.noPredictions}>No predictions available</Text>
+				</View>
+			);
 
 		return (
 			<View style={styles.predictionsContainer}>
@@ -447,8 +462,7 @@ function Home() {
 				)}
 			</View>
 		);
-	};	
-	
+	};
 
 	const renderFavorite = ({ item }) => (
 		<TouchableOpacity
