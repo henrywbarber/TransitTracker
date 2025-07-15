@@ -22,20 +22,13 @@ function Home() {
 	const [predictions, setPredictions] = useState({});
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
-	//loads the favorites everytime the home window is focused
+	// Fetch favorites on page focus and fetch prediction for favorites
 	useFocusEffect(
 		React.useCallback(() => {
-			loadFavorites();
+			loadFavorites().then(() => {
+				if (favorites.length > 0) fetchAllPredictions();
+			});
 		}, [])
-	);
-
-	//fetches predictions when home window comes into focus
-	useFocusEffect(
-		React.useCallback(() => {
-			if (favorites.length > 0) {
-				fetchAllPredictions();
-			}
-		}, [favorites])
 	);
 
 	//every minute fetchAllPredictions will run to prevent having to reload the page
@@ -248,17 +241,12 @@ function Home() {
 	};
 
 	const renderTrainPredictions = trainPredictions => {
-		if (
-			!trainPredictions ||
-			!Array.isArray(trainPredictions) ||
-			trainPredictions.length === 0
-		) {
-			return (
-				<View style={styles.predictionsContainer}>
-					<Text style={styles.noPredictions}>No predictions available</Text>
-				</View>
-			);
-		}
+		// Check for predictions if we have them
+		if (!trainPredictions.length) return (
+			<View style={styles.predictionsContainer}>
+				<Text style={styles.noPredictions}>No predictions available</Text>
+			</View>
+		);
 
 		return (
 			<View style={styles.predictionsContainer}>
@@ -367,19 +355,30 @@ function Home() {
 		);
 	};
 
-	const renderBusPredictions = busPredictions => (
-		<View style={styles.predictionsContainer}>
-			{Object.entries(busPredictions).map(
-				([direction, predictions], index, array) => (
-					<View
-						key={direction}
-						style={[
-							styles.directionContainer,
-							index === array.length - 1 && { marginBottom: 0 }
-						]}
-					>
-						<Text style={styles.directionHeader}>{direction}</Text>
-						{predictions.length > 0 ? (
+	const renderBusPredictions = busPredictions => {
+		const hasData = Object.values(busPredictions).some(
+			predictions => Array.isArray(predictions) && predictions.length > 0
+		);
+		if (!hasData) {
+			return (
+				<View style={styles.predictionsContainer}>
+					<Text style={styles.noPredictions}>No predictions available</Text>
+				</View>
+			);
+		}
+
+		return (
+			<View style={styles.predictionsContainer}>
+				{Object.entries(busPredictions).map(
+					([direction, predictions], index, array) => (
+						<View
+							key={direction}
+							style={[
+								styles.directionContainer,
+								index === array.length - 1 && { marginBottom: 0 }
+							]}
+						>
+							<Text style={styles.directionHeader}>{direction}</Text>
 							<View>
 								<View style={styles.tableHeader}>
 									<Text style={[styles.tableHeaderCell, { flex: 1 }]}>Bus</Text>
@@ -394,7 +393,8 @@ function Home() {
 									</Text>
 								</View>
 								{predictions.map((prediction, index) => {
-									const isDelayed = prediction.dly === "1" || prediction.dly === true;
+									const isDelayed =
+										prediction.dly === "1" || prediction.dly === true;
 									let etaText;
 									if (prediction.prdctdn === "DUE") {
 										etaText = "DUE";
@@ -442,14 +442,13 @@ function Home() {
 									);
 								})}
 							</View>
-						) : (
-							<Text style={styles.noPredictions}>No predictions available</Text>
-						)}
-					</View>
-				)
-			)}
-		</View>
-	);
+						</View>
+					)
+				)}
+			</View>
+		);
+	};	
+	
 
 	const renderFavorite = ({ item }) => (
 		<TouchableOpacity
