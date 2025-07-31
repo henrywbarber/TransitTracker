@@ -15,9 +15,11 @@ Notes:
 - Ideas to implement:
     - Home Page:
         - List of favorited stops
-    - Search Page:
-        - Search box for queries
-        - Perhaps seperate into Bus Page and Train Page
+    - Trains Page:
+        - List of lines with each stop the line services
+        - Search functionality filtering stops
+    - Busses Page:
+        - Search functionality to find line/stop
     - Settings Page:
         - Dark/Light mode
         - Notifications
