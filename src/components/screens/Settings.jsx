@@ -5,33 +5,90 @@ import {
 	StyleSheet,
 	SafeAreaView,
 	StatusBar,
-	Switch
+	Switch,
+	ScrollView
 } from "react-native";
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
 function Settings() {
-	const [notifications, setNotifications] = useState(false);
+	/*const [notifications, setNotifications] = useState(false);
 
 	const toggleNotifications = () => {
 		setNotifications(prev => !prev);
-	};
+	};*/
+
+	const LegendItem = ({ icon, label, description, textColor = '#333' }) => (
+		<View style={styles.legendItem}>
+			<View style={styles.iconContainer}>
+				{icon}
+			</View>
+			<View style={styles.textContainer}>
+				<Text style={[styles.legendLabel, { color: textColor }]}>{label}</Text>
+				<Text style={styles.legendDescription}>{description}</Text>
+			</View>
+		</View>
+	);
+
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-			<View style={styles.container}>
+			<ScrollView style={styles.container}>
 				<View style={styles.header}>
 					<Text style={styles.title}>Settings</Text>
 				</View>
-				<View style={styles.noti}>
-					<Text style={styles.sectionTitle}>Notifications</Text>
-					<Switch
-						trackColor={{ false: "#ffffff", true: "#34c759" }}
-						thumbColor={notifications ? "#FFFFFF" : "#ffffff"}
-						ios_backgroundColor="#ffffff"
-						onValueChange={toggleNotifications}
-						value={notifications}
-					/>
+				
+				{/* Notifications Section 
+				<View style={styles.section}>
+					<View style={styles.noti}>
+						<Text style={styles.sectionTitle}>Notifications</Text>
+						<Switch
+							value={notifications}
+							onValueChange={toggleNotifications}
+							trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
+							thumbColor={notifications ? '#FFFFFF' : '#FFFFFF'}
+						/>
+					</View>
 				</View>
-			</View>
+					*/}
+				{/* Legend Section */}
+				<View style={styles.section}>
+					<Text style={styles.sectionTitle}>Legend</Text>
+					<View style={styles.legendContainer}>
+						<LegendItem
+							icon={<MaterialCommunityIcons name="bus" size={24} color="#2196F3" />}
+							label="Bus"
+							description="Bus route"
+						/>
+						<LegendItem
+							icon={<MaterialCommunityIcons name="train" size={24} color="#FF9800" />}
+							label="Train"
+							description="Train route"
+						/>
+						<LegendItem
+							icon={<Text style={styles.dueText}>DUE</Text>}
+							label="Due"
+							description="Arriving in less than 1 minute"
+						/>
+						<LegendItem
+							icon={<Ionicons name="git-branch-outline" size={24} color="#9C27B0" />}
+							label="Connection"
+							description="Connecting stop"
+						/>
+						<LegendItem
+							icon={<FontAwesome name="wheelchair" size={24} color="#4CAF50" />}
+							label="Accessible"
+							description="Handicap accessible"
+						/>
+						<LegendItem
+							icon={<Text style={styles.delayedText}>DLY</Text>}
+							label="Delayed"
+							description="Delayed arrival"
+						/>
+					</View>
+				</View>
+			</ScrollView>
 		</SafeAreaView>
 	);
 }
@@ -58,17 +115,60 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 		color: "#333333"
 	},
+	section: {
+		marginTop: 24,
+		backgroundColor: "#FFFFFF",
+		borderRadius: 12,
+		padding: 16,
+		shadowColor: "#000",
+		shadowOffset: {
+			width: 0,
+			height: 1,
+		},
+		shadowOpacity: 0.1,
+		shadowRadius: 2,
+		elevation: 2,
+	},
 	noti: {
 		flexDirection: "row",
 		justifyContent: "space-between",
-		alignItems: "center",
-		paddingTop: 16,
-		paddingHorizontal: 2
+		alignItems: "center"
 	},
 	sectionTitle: {
 		fontSize: 18,
 		fontWeight: "600",
+		color: "#333333",
+		marginBottom: 16
+	},
+	legendContainer: {
+		gap: 16
+	},
+	legendItem: {
+		flexDirection: "row",
+		alignItems: "center"
+	},
+	iconContainer: {
+		width: 40,
+		alignItems: "center",
+		marginRight: 16
+	},
+	textContainer: {
+		flex: 1
+	},
+	legendLabel: {
+		fontSize: 16,
+		fontWeight: "500",
+		marginBottom: 2
+	},
+	legendDescription: {
+		fontSize: 14,
 		color: "#666666"
+	},
+	dueText: {
+		color: "#34C759"
+	},
+	delayedText: {
+		color: "#FF3B30"
 	}
 });
 
