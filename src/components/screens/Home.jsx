@@ -8,7 +8,8 @@ import {
 	ActivityIndicator,
 	SafeAreaView,
 	StatusBar,
-	Alert
+	Alert,
+	LayoutAnimation
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -78,6 +79,9 @@ function Home() {
 
 	const toggleExpanded = async itemId => {
 		try {
+			// Animate layout changes (expanding/collapsing)
+			LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
 			// Create a new array with the updated favorite
 			const updatedFavorites = favorites.map(favorite => {
 				if (favorite.id === itemId) {
@@ -467,7 +471,7 @@ function Home() {
 	const renderFavorite = ({ item }) => (
 		<TouchableOpacity
 			onPress={() => toggleExpanded(item.id)}
-			activeOpacity={0.7}
+			activeOpacity={1}
 		>
 			<View style={styles.favoriteCard}>
 				<View

@@ -9,7 +9,8 @@ import {
 	SectionList,
 	SafeAreaView,
 	StatusBar,
-	Alert
+	Alert,
+	LayoutAnimation
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
@@ -397,6 +398,7 @@ function Trains() {
 	// Modify toggleStopDropdown to use fetchAllPredictions
 	const toggleStopDropdown = item => {
 		console.log("[Trains] Toggling stop dropdown for:", item.station_name);
+		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 		setLines(prevLines =>
 			prevLines.map(line => {
 				if (
@@ -444,6 +446,7 @@ function Trains() {
 	};
 
 	const toggleDropdown = lineLabel => {
+		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 		setLines(prevLines =>
 			prevLines.map(line =>
 				line.label === lineLabel

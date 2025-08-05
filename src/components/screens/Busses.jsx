@@ -9,7 +9,8 @@ import {
 	SectionList,
 	SafeAreaView,
 	StatusBar,
-	Alert
+	Alert,
+	LayoutAnimation
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
@@ -343,6 +344,7 @@ function Busses() {
 	};
 
 	const toggleRouteDropdown = useCallback(routeNum => {
+		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 		setAllRoutes(prevRoutes =>
 			prevRoutes.map(route =>
 				route.routeNum === routeNum
@@ -353,6 +355,7 @@ function Busses() {
 	}, []);
 
 	const toggleStopDropdown = useCallback((stopName, routeNum) => {
+		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 		setAllRoutes(prevRoutes =>
 			prevRoutes.map(route => {
 				if (route.routeNum === routeNum) {
