@@ -489,7 +489,9 @@ function Home() {
 									style={styles.typeIcon}
 								/>
 								<Text style={styles.favoriteType}>
-									{item.type === "train" ? "Train Station" : "Bus Stop"}
+									{item.type === "train"
+										? "Train Station"
+										: `Route ${item.routeNumber} Bus Stop`}
 								</Text>
 							</View>
 						</View>
