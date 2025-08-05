@@ -13,17 +13,14 @@ import {
 } from "react-native";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 const SectionHeader = React.memo(({ section, onToggle }) => (
 	<TouchableOpacity
 		onPress={() => onToggle(section.routeNum)}
 		activeOpacity={0.7}
-		style={[
-			styles.sectionCard,
-			{ borderLeftColor: section.routeClr }
-		]}
+		style={[styles.sectionCard, { borderLeftColor: section.routeClr }]}
 	>
 		<Text style={styles.sectionTitle}>
 			{section.routeNum} - {section.routeName}
@@ -43,7 +40,7 @@ function Busses() {
 	const [allRoutes, setAllRoutes] = useState([]);
 	const [favorites, setFavorites] = useState([]);
 
-	const processRouteData = async (routes) => {
+	const processRouteData = async routes => {
 		return Promise.all(
 			routes.map(async route => {
 				const directionResponse = await axios.get(
@@ -87,7 +84,7 @@ function Busses() {
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
-			console.log("[Busses] Fetching all routes")
+			console.log("[Busses] Fetching all routes");
 			try {
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
@@ -105,11 +102,10 @@ function Busses() {
 				);
 
 				console.log(`[Busses] Processing ${routesData.length} routes`);
-				
+
 				// Process all routes at once
 				const processedRoutes = await processRouteData(routesData);
 				setAllRoutes(processedRoutes);
-
 			} catch (error) {
 				console.error("Error fetching bus route data:", error);
 			} finally {
@@ -118,14 +114,13 @@ function Busses() {
 		};
 
 		fetchRoutes();
-		
 	}, []);
 
 	useFocusEffect(
 		useCallback(() => {
 			const loadFavorites = async () => {
 				try {
-					const savedFavorites = await AsyncStorage.getItem('favorites');
+					const savedFavorites = await AsyncStorage.getItem("favorites");
 					if (savedFavorites) {
 						const tempFavs = JSON.parse(savedFavorites);
 						// Ensure each favorite has an isExpanded property
@@ -133,11 +128,13 @@ function Busses() {
 							...favorite,
 							isExpanded: favorite.isExpanded || false
 						}));
-						const busFavs = favoritesWithExpandedState.filter(f => f.type === 'bus');
+						const busFavs = favoritesWithExpandedState.filter(
+							f => f.type === "bus"
+						);
 						setFavorites(busFavs);
 					}
 				} catch (error) {
-					console.error('Error loading favorites:', error);
+					console.error("Error loading favorites:", error);
 				}
 			};
 
@@ -147,7 +144,7 @@ function Busses() {
 
 	const fetchStopPredictions = async (stopId, routeNum, direction) => {
 		try {
-			console.log(`[Busses] Fetched predictions for ${stopId}`)
+			console.log(`[Busses] Fetched predictions for ${stopId}`);
 			const response = await axios.get(
 				`http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNum}&stpid=${stopId}&format=json`
 			);
@@ -229,8 +226,6 @@ function Busses() {
 			console.log("[Busses] Done fetching expanded predictions");
 		}
 	};
-	
-	
 
 	const filterStops = useCallback(
 		route => {
@@ -274,26 +269,25 @@ function Busses() {
 			})
 			.filter(Boolean); // remove nulls
 	}, [allRoutes, search]);
-	
 
 	const isFavorite = (routeNum, stopName) => {
 		const favoriteId = `${routeNum}-${stopName}`;
-		return favorites.some(fav => fav.id === favoriteId && fav.type === 'bus');
+		return favorites.some(fav => fav.id === favoriteId && fav.type === "bus");
 	};
 
 	const toggleFavorite = async (stopName, stopId, route) => {
 		try {
-			console.log("[Busses] toggling favorite for " + stopName)
+			console.log("[Busses] toggling favorite for " + stopName);
 
 			const dirWithStops = Object.fromEntries(
 				Object.entries(route.stops[stopName].directions).map(
-				  ([direction, data]) => [direction, data.stopId]
+					([direction, data]) => [direction, data.stopId]
 				)
 			);
 			const favoriteItem = {
-				id: `${route.routeNum}-${stopName}`, 
+				id: `${route.routeNum}-${stopName}`,
 				name: `${route.routeName} - ${stopName}`,
-				type: 'bus',
+				type: "bus",
 				color: route.routeClr,
 				stopIds: dirWithStops,
 				routeNumber: route.routeNum,
@@ -301,12 +295,12 @@ function Busses() {
 			};
 
 			// Get current favorites
-			const savedFavorites = await AsyncStorage.getItem('favorites');
+			const savedFavorites = await AsyncStorage.getItem("favorites");
 			let tempFavs = savedFavorites ? JSON.parse(savedFavorites) : [];
 
 			// Check if already favorited
 			const isFavorited = favorites.some(
-				fav => fav.id === favoriteItem.id && fav.type === 'bus'
+				fav => fav.id === favoriteItem.id && fav.type === "bus"
 			);
 
 			if (isFavorited) {
@@ -335,7 +329,7 @@ function Busses() {
 							}
 						}
 					]
-				)	
+				);
 			} else {
 				// Add to favorites
 				tempFavs.push(favoriteItem);
@@ -344,7 +338,7 @@ function Busses() {
 				setFavorites(tempFavs);
 			}
 		} catch (error) {
-			console.error('Error toggling favorite:', error);
+			console.error("Error toggling favorite:", error);
 		}
 	};
 
@@ -361,14 +355,13 @@ function Busses() {
 	const toggleStopDropdown = useCallback((stopName, routeNum) => {
 		setAllRoutes(prevRoutes =>
 			prevRoutes.map(route => {
-				
 				if (route.routeNum === routeNum) {
 					const isExpanding = !route.stops[stopName].dropdownOn;
-					
+
 					if (isExpanding) {
 						Object.entries(route.stops[stopName].directions).forEach(
 							([direction, data]) => {
-								console.log(data)
+								console.log(data);
 								fetchStopPredictions(data.stopId, routeNum, direction);
 							}
 						);
@@ -392,8 +385,8 @@ function Busses() {
 
 	const renderSectionHeader = useCallback(
 		({ section }) => (
-			<SectionHeader 
-				section={section} 
+			<SectionHeader
+				section={section}
 				onToggle={toggleRouteDropdown}
 				key={`header-${section.key}`} // Ensure unique key for header
 			/>
@@ -490,24 +483,8 @@ function Busses() {
 															</Text>
 														</View>
 														{predictions.map((prediction, index) => {
-															const isDelayed = prediction.dly === "1" || prediction.dly === true;
-															
-															// Fix the ETA text logic
-															let etaText;
-															if (prediction.prdctdn === "DUE") {
-																etaText = "DUE";
-															} else if (prediction.prdctdn === "DLY") {
-																etaText = "DELAYED";
-															} else {
-																const minutes = parseInt(prediction.prdctdn);
-																if (isNaN(minutes)) {
-																	etaText = "N/A";
-																} else if (minutes <= 2) {
-																	etaText = "DUE";
-																} else {
-																	etaText = `${minutes} min`;
-																}
-															}
+															const minutes = parseInt(prediction.prdctdn);
+															const isDue = prediction.prdctdn === "DUE" || minutes <= 2;
 
 															return (
 																<View
@@ -525,16 +502,17 @@ function Busses() {
 																	<Text style={[styles.tableCell, { flex: 2 }]}>
 																		{prediction.des}
 																	</Text>
-																	<View style={[styles.etaContainer]}>
+
+																	<View style={styles.etaContainer}>
 																		<Text
 																			style={[
 																				styles.etaText,
-																				isDelayed && styles.delayedText,
-																				etaText === "DUE" && styles.dueText,
-																				etaText === "DELAYED" && styles.delayedText
+																				prediction.dly == true &&
+																					styles.delayedText,
+																				isDue && styles.dueText
 																			]}
 																		>
-																			{etaText}
+																			{isDue ? "DUE" : `${minutes} min`}
 																		</Text>
 																	</View>
 																</View>
@@ -612,7 +590,7 @@ function Busses() {
 								}}
 								renderSectionHeader={renderSectionHeader}
 								renderItem={renderItem}
-                                stickySectionHeadersEnabled={false}
+								stickySectionHeadersEnabled={false}
 								initialNumToRender={10}
 								maxToRenderPerBatch={10}
 								windowSize={10}
@@ -751,13 +729,13 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 		color: "#333",
 		marginRight: 8,
-		flex: 1,
+		flex: 1
 	},
 	iconContainer: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 0,
-		flexShrink: 0,
+		flexShrink: 0
 	},
 	favoriteButton: {
 		padding: 6,
@@ -868,9 +846,6 @@ const styles = StyleSheet.create({
 	},
 	dueText: {
 		color: "#34C759"
-	},
-	scheduledText: {
-		fontWeight: "normal"
 	},
 	noPredictions: {
 		fontSize: 15,

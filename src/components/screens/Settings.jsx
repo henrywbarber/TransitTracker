@@ -38,7 +38,7 @@ function Settings() {
 				<View style={styles.header}>
 					<Text style={styles.title}>Settings</Text>
 				</View>
-				
+
 				{/* Notifications Section 
 				<View style={styles.section}>
 					<View style={styles.noti}>
@@ -57,22 +57,27 @@ function Settings() {
 					<Text style={styles.sectionTitle}>Legend</Text>
 					<View style={styles.legendContainer}>
 						<LegendItem
-							icon={<MaterialCommunityIcons name="bus" size={24} color="#2196F3" />}
+							icon={
+								<MaterialCommunityIcons name="bus" size={24} color="#2196F3" />
+							}
 							label="Bus"
 							description="Bus route"
 						/>
 						<LegendItem
-							icon={<MaterialCommunityIcons name="train" size={24} color="#FF9800" />}
+							icon={
+								<MaterialCommunityIcons
+									name="train"
+									size={24}
+									color="#FF9800"
+								/>
+							}
 							label="Train"
 							description="Train route"
 						/>
 						<LegendItem
-							icon={<Text style={styles.dueText}>DUE</Text>}
-							label="Due"
-							description="Arriving in less than 1 minute"
-						/>
-						<LegendItem
-							icon={<Ionicons name="git-branch-outline" size={24} color="#9C27B0" />}
+							icon={
+								<Ionicons name="git-branch-outline" size={24} color="#9C27B0" />
+							}
 							label="Connection"
 							description="Connecting stop"
 						/>
@@ -80,6 +85,25 @@ function Settings() {
 							icon={<FontAwesome name="wheelchair" size={24} color="#4CAF50" />}
 							label="Accessible"
 							description="Handicap accessible"
+						/>
+
+
+						<LegendItem
+							icon={<Text style={styles.etaText}>5 min</Text>}
+							label="Live ETA"
+							description="Estimated arrival time based on live data"
+						/>
+						<LegendItem
+							icon={<Text style={styles.scheduledText}>5 min</Text>}
+							label="Scheduled ETA"
+							description="Arrival time based on scheduled data"
+						/>
+
+
+						<LegendItem
+							icon={<Text style={styles.dueText}>DUE</Text>}
+							label="Due"
+							description="Arriving in less than 1 minute"
 						/>
 						<LegendItem
 							icon={<Text style={styles.delayedText}>DLY</Text>}
@@ -123,11 +147,11 @@ const styles = StyleSheet.create({
 		shadowColor: "#000",
 		shadowOffset: {
 			width: 0,
-			height: 1,
+			height: 1
 		},
 		shadowOpacity: 0.1,
 		shadowRadius: 2,
-		elevation: 2,
+		elevation: 2
 	},
 	noti: {
 		flexDirection: "row",
@@ -164,11 +188,25 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		color: "#666666"
 	},
-	dueText: {
-		color: "#34C759"
+	etaText: {
+		fontSize: 14,
+		fontWeight: "bold",
+		color: "#666666"
+	},
+	scheduledText: {
+		fontSize: 14,
+		fontWeight: "normal",
+		color: "#666666"
 	},
 	delayedText: {
+		fontSize: 14,
+		fontWeight: "bold",
 		color: "#FF3B30"
+	},
+	dueText: {
+		fontSize: 14,
+		fontWeight: "bold",
+		color: "#34C759"
 	}
 });
 

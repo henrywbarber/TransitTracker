@@ -240,34 +240,6 @@ function Trains() {
 		}, [])
 	);
 
-	const fetchStopPredictions = async stopId => {
-		try {
-			// console.log(`Fetching Station Predictions for stopId: ${stopId}`);
-
-			const response = await axios.get(
-				`https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stopId}&outputType=JSON`
-			);
-
-			// console.log("Raw Response Data:", response.data); // Log the raw response data to inspect its structure
-
-			const predictionsData = response.data.ctatt
-				? response.data.ctatt.eta
-				: [];
-			// console.log(`Predictions for stopId ${stopId}:`, predictionsData); // Log extracted predictions data
-
-			setStationPredictions(prevStationPredictions => {
-				const updatedPredictions = {
-					...prevStationPredictions,
-					[stopId]: predictionsData
-				};
-				//   console.log("Updated Station Predictions State:", updatedPredictions); // Log the updated state
-				return updatedPredictions;
-			});
-		} catch (error) {
-			console.error(`Error fetching predictions for stopId ${stopId}:`, error);
-		}
-	};
-
 	const fetchAllPredictions = async () => {
 		setIsRefreshing(true);
 		console.log("[Trains] Starting fetchAllPredictions");
