@@ -319,7 +319,7 @@ function Busses() {
 						},
 						{
 							text: "Remove",
-							sytle: "destructive",
+							style: "destructive",
 							onPress: async () => {
 								tempFavs = tempFavs.filter(
 									fav => !(fav.id === favoriteItem.id && fav.type === "bus")
