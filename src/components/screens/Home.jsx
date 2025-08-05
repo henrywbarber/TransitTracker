@@ -750,10 +750,6 @@ const styles = StyleSheet.create({
 	},
 	expandIcon: {
 		marginLeft: 4
-	},
-	removedCard: {
-		opacity: 0.7,
-		backgroundColor: "#F8F8F8"
 	}
 });
 

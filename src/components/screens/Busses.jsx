@@ -403,11 +403,11 @@ function Busses() {
 	const renderItem = useCallback(
 		({ item, section, index }) => (
 			<Pressable
-            onPress={() => toggleStopDropdown(item, section.routeNum)}
-            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-            key={`${section.key}-${item}-${index}`}
-        >
-            <View style={styles.stopCard}>
+				onPress={() => toggleStopDropdown(item, section.routeNum)}
+				style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+				key={`${section.key}-${item}-${index}`}
+			>
+				<View style={styles.stopCard}>
 					<View
 						style={[
 							styles.stopColorIndicator,
@@ -490,7 +490,8 @@ function Busses() {
 														</View>
 														{predictions.map((prediction, index) => {
 															const minutes = parseInt(prediction.prdctdn);
-															const isDue = prediction.prdctdn === "DUE" || minutes <= 2;
+															const isDue =
+																prediction.prdctdn === "DUE" || minutes <= 2;
 
 															return (
 																<View
@@ -804,9 +805,6 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		width: "100%"
 	},
-	favoriteButton: {
-		padding: 8
-	},
 	predictionsContainer: {
 		marginTop: 6,
 		backgroundColor: "#F9F9F9",
@@ -894,10 +892,6 @@ const styles = StyleSheet.create({
 	},
 	expandIcon: {
 		marginLeft: 4
-	},
-	removedCard: {
-		opacity: 0.7,
-		backgroundColor: "#F8F8F8"
 	}
 });
 
