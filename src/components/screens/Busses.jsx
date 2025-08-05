@@ -618,7 +618,7 @@ function Busses() {
 const styles = StyleSheet.create({
 	safeArea: {
 		flex: 1,
-		backgroundColor: "#f4f4f4"
+		backgroundColor: "#F8F8F8"
 	},
 	container: {
 		flex: 1,
@@ -682,12 +682,12 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		justifyContent: "space-between",
 		alignItems: "center",
-		backgroundColor: "#fff",
+		backgroundColor: "#FFFFFF",
 		padding: 12,
 		borderRadius: 8,
 		marginBottom: 8,
 		borderLeftWidth: 6,
-		shadowColor: "#000",
+		shadowColor: "#000000",
 		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.1,
 		shadowRadius: 4,

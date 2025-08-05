@@ -469,49 +469,49 @@ function Home() {
 	};
 
 	const renderFavorite = ({ item }) => (
+		// Render each favorite item with its predictions
 		<Pressable
 			onPress={() => toggleExpanded(item.id)}
-			style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+			style={({ pressed }) => [
+				styles.favoriteCard,
+				{ borderLeftColor: item.color },
+				pressed && { opacity: 0.7 }
+			]}
 		>
-			<View style={styles.favoriteCard}>
-				<View
-					style={[styles.colorIndicator, { backgroundColor: item.color }]}
-				/>
-				<View style={styles.favoriteInfo}>
-					<View style={styles.favoriteHeader}>
-						<View style={styles.favoriteMainContent}>
-							<Text style={styles.favoriteName}>{item.name}</Text>
-							<View style={styles.typeContainer}>
-								<Icon
-									name={item.type === "train" ? "train" : "bus"}
-									size={14}
-									color="#666"
-									style={styles.typeIcon}
-								/>
-								<Text style={styles.favoriteType}>
-									{item.type === "train"
-										? "Train Station"
-										: `Route ${item.routeNumber} Bus Stop`}
-								</Text>
-							</View>
-						</View>
-						<View style={styles.iconContainer}>
-							<Pressable
-								onPress={() => removeFavorite(item)}
-								style={styles.removeButton}
-							>
-								<Ionicons name="heart" size={24} color="#FF3B30" />
-							</Pressable>
-							<Ionicons
-								name={item.isExpanded ? "chevron-up" : "chevron-down"}
-								size={16}
+			<View style={styles.favoriteInfo}>
+				<View style={styles.favoriteHeader}>
+					<View style={styles.favoriteMainContent}>
+						<Text style={styles.favoriteName}>{item.name}</Text>
+						<View style={styles.typeContainer}>
+							<Icon
+								name={item.type === "train" ? "train" : "bus"}
+								size={14}
 								color="#666"
-								style={styles.expandIcon}
+								style={styles.typeIcon}
 							/>
+							<Text style={styles.favoriteType}>
+								{item.type === "train"
+									? "Train Station"
+									: `Route ${item.routeNumber} Bus Stop`}
+							</Text>
 						</View>
 					</View>
-					{item.isExpanded && renderPredictions(item)}
+					<View style={styles.iconContainer}>
+						<Pressable
+							onPress={() => removeFavorite(item)}
+							style={styles.removeButton}
+						>
+							<Ionicons name="heart" size={24} color="#FF3B30" />
+						</Pressable>
+						<Ionicons
+							name={item.isExpanded ? "chevron-up" : "chevron-down"}
+							size={16}
+							color="#666"
+							style={styles.expandIcon}
+						/>
+					</View>
 				</View>
+				{item.isExpanded && renderPredictions(item)}
 			</View>
 		</Pressable>
 	);
@@ -603,14 +603,14 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "stretch",
 		backgroundColor: "#FFFFFF",
-		borderRadius: 12,
-		marginBottom: 12,
-		shadowColor: "#000",
+		borderRadius: 8,
+		marginBottom: 8,
+		borderLeftWidth: 6,
+		shadowColor: "#000000",
 		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.1,
 		shadowRadius: 4,
-		elevation: 3,
-		overflow: "hidden"
+		elevation: 3
 	},
 	colorIndicator: {
 		width: 6,
