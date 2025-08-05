@@ -4,7 +4,7 @@ import {
 	Text,
 	StyleSheet,
 	FlatList,
-	TouchableOpacity,
+	Pressable,
 	ActivityIndicator,
 	SafeAreaView,
 	StatusBar,
@@ -469,9 +469,9 @@ function Home() {
 	};
 
 	const renderFavorite = ({ item }) => (
-		<TouchableOpacity
+		<Pressable
 			onPress={() => toggleExpanded(item.id)}
-			activeOpacity={1}
+			style={({ pressed }) => [pressed && { opacity: 0.7 }]}
 		>
 			<View style={styles.favoriteCard}>
 				<View
@@ -488,24 +488,18 @@ function Home() {
 									color="#666"
 									style={styles.typeIcon}
 								/>
-								{/* <Ionicons 
-                                    name={item.type === 'train' ? 'train-outline' : 'bus-outline'} 
-                                    size={14} 
-                                    color="#666" 
-                                    style={styles.typeIcon}
-                                /> */}
 								<Text style={styles.favoriteType}>
 									{item.type === "train" ? "Train Station" : "Bus Stop"}
 								</Text>
 							</View>
 						</View>
 						<View style={styles.iconContainer}>
-							<TouchableOpacity
+							<Pressable
 								onPress={() => removeFavorite(item)}
 								style={styles.removeButton}
 							>
 								<Ionicons name="heart" size={24} color="#FF3B30" />
-							</TouchableOpacity>
+							</Pressable>
 							<Ionicons
 								name={item.isExpanded ? "chevron-up" : "chevron-down"}
 								size={16}
@@ -517,7 +511,7 @@ function Home() {
 					{item.isExpanded && renderPredictions(item)}
 				</View>
 			</View>
-		</TouchableOpacity>
+		</Pressable>
 	);
 
 	const renderEmptyState = () => (
@@ -537,7 +531,7 @@ function Home() {
 			<View style={styles.container}>
 				<View style={styles.header}>
 					<Text style={styles.title}>My Favorites</Text>
-					<TouchableOpacity
+					<Pressable
 						onPress={fetchAllPredictions}
 						style={styles.refreshButton}
 						disabled={isRefreshing}
@@ -547,7 +541,7 @@ function Home() {
 						) : (
 							<Ionicons name="refresh" size={24} color="#007AFF" />
 						)}
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 
 				<FlatList

@@ -4,7 +4,7 @@ import {
 	Text,
 	StyleSheet,
 	TextInput,
-	TouchableOpacity,
+	Pressable,
 	ActivityIndicator,
 	SectionList,
 	SafeAreaView,
@@ -18,10 +18,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 
 const SectionHeader = React.memo(({ section, onToggle }) => (
-	<TouchableOpacity
+	<Pressable
 		onPress={() => onToggle(section.routeNum)}
-		activeOpacity={0.7}
-		style={[styles.sectionCard, { borderLeftColor: section.routeClr }]}
+		style={({ pressed }) => [
+			styles.sectionCard,
+			{ borderLeftColor: section.routeClr },
+			pressed && { opacity: 0.7 }
+		]}
 	>
 		<Text style={styles.sectionTitle}>
 			{section.routeNum} - {section.routeName}
@@ -31,7 +34,7 @@ const SectionHeader = React.memo(({ section, onToggle }) => (
 			size={24}
 			color="#666"
 		/>
-	</TouchableOpacity>
+	</Pressable>
 ));
 
 function Busses() {
@@ -399,12 +402,12 @@ function Busses() {
 
 	const renderItem = useCallback(
 		({ item, section, index }) => (
-			<TouchableOpacity
-				onPress={() => toggleStopDropdown(item, section.routeNum)}
-				activeOpacity={0.7}
-				key={`${section.key}-${item}-${index}`} // Unique key for each item
-			>
-				<View style={styles.stopCard}>
+			<Pressable
+            onPress={() => toggleStopDropdown(item, section.routeNum)}
+            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            key={`${section.key}-${item}-${index}`}
+        >
+            <View style={styles.stopCard}>
 					<View
 						style={[
 							styles.stopColorIndicator,
@@ -415,7 +418,7 @@ function Busses() {
 						<View style={styles.stopHeader}>
 							<Text style={styles.stopName}>{item}</Text>
 							<View style={styles.iconContainer}>
-								<TouchableOpacity
+								<Pressable
 									onPress={() =>
 										toggleFavorite(
 											item, // stopName
@@ -436,7 +439,7 @@ function Busses() {
 										size={24}
 										color={isFavorite(section.routeNum, item) ? "red" : "#666"}
 									/>
-								</TouchableOpacity>
+								</Pressable>
 								<Ionicons
 									name={
 										section.stops[item].dropdownOn
@@ -535,7 +538,7 @@ function Busses() {
 						)}
 					</View>
 				</View>
-			</TouchableOpacity>
+			</Pressable>
 		),
 		[toggleStopDropdown, toggleFavorite, isFavorite]
 	);
@@ -546,7 +549,7 @@ function Busses() {
 			<View style={styles.container}>
 				<View style={styles.header}>
 					<Text style={styles.headerTitle}>Chicago Bus Routes</Text>
-					<TouchableOpacity
+					<Pressable
 						onPress={fetchAllPredictions}
 						style={styles.refreshButton}
 						disabled={isRefreshing}
@@ -556,7 +559,7 @@ function Busses() {
 						) : (
 							<Ionicons name="refresh" size={24} color="#007AFF" />
 						)}
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 				{isLoading ? (
 					<View style={styles.loadingContainer}>

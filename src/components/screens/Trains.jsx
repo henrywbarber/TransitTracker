@@ -4,7 +4,7 @@ import {
 	Text,
 	StyleSheet,
 	TextInput,
-	TouchableOpacity,
+	Pressable,
 	ActivityIndicator,
 	SectionList,
 	SafeAreaView,
@@ -458,10 +458,13 @@ function Trains() {
 
 	const renderSectionHeader = ({ section }) =>
 		search.length > 0 ? null : (
-			<TouchableOpacity
+			<Pressable
 				onPress={() => toggleDropdown(section.title)}
-				activeOpacity={0.7}
-				style={[styles.sectionCard, { borderLeftColor: section.color }]}
+				style={({ pressed }) => [
+					styles.sectionCard,
+					{ borderLeftColor: section.color },
+					pressed && { opacity: 0.7 }
+				]}
 			>
 				<Text style={styles.sectionTitle}>{section.title} Line</Text>
 				<Ionicons
@@ -469,13 +472,13 @@ function Trains() {
 					size={24}
 					color="#666"
 				/>
-			</TouchableOpacity>
+			</Pressable>
 		);
 
 	const renderItem = ({ item, section }) => (
-		<TouchableOpacity
+		<Pressable
 			onPress={() => toggleStopDropdown(item)}
-			activeOpacity={0.7}
+			style={({ pressed }) => [pressed && { opacity: 0.7 }]}
 			key={`${section.key}-${item}`} // Unique key for each item
 		>
 			<View style={styles.stationCard}>
@@ -507,7 +510,7 @@ function Trains() {
 							</View>
 						</View>
 						<View style={styles.iconContainer}>
-							<TouchableOpacity
+							<Pressable
 								onPress={e => {
 									e.stopPropagation();
 									toggleFavorite(item);
@@ -519,7 +522,7 @@ function Trains() {
 									size={24}
 									color={isFavorite(item) ? "red" : "#666"}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 							<Ionicons
 								name={item.dropdownOn ? "chevron-up" : "chevron-down"}
 								size={16}
@@ -665,7 +668,7 @@ function Trains() {
 					)}
 				</View>
 			</View>
-		</TouchableOpacity>
+		</Pressable>
 	);
 
 	return (
@@ -674,7 +677,7 @@ function Trains() {
 			<View style={styles.container}>
 				<View style={styles.header}>
 					<Text style={styles.title}>Chicago Train Stations</Text>
-					<TouchableOpacity
+					<Pressable
 						onPress={fetchAllPredictions}
 						style={styles.refreshButton}
 						disabled={isRefreshing}
@@ -684,7 +687,7 @@ function Trains() {
 						) : (
 							<Ionicons name="refresh" size={24} color="#007AFF" />
 						)}
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 				{isLoadingStations ? (
 					<View style={styles.loadingContainer}>
