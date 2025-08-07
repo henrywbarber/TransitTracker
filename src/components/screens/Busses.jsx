@@ -489,9 +489,19 @@ function Busses() {
 															</Text>
 														</View>
 														{predictions.map((prediction, index) => {
-															const minutes = parseInt(prediction.prdctdn);
-															const isDue =
-																prediction.prdctdn === "DUE" || minutes <= 2;
+															let etaText;
+															if (prediction.prdctdn === "DUE") {
+																etaText = "DUE";
+															} else if (prediction.prdctdn === "DLY") {
+																etaText = "DELAYED";
+															} else {
+																const minutes = parseInt(prediction.prdctdn);
+																if (minutes <= 2) {
+																	etaText = "DUE";
+																} else {
+																	etaText = `${minutes} min`;
+																}
+															}
 
 															return (
 																<View
@@ -514,12 +524,12 @@ function Busses() {
 																		<Text
 																			style={[
 																				styles.etaText,
-																				prediction.dly == true &&
-																					styles.delayedText,
-																				isDue && styles.dueText
+																				prediction.dly == true && styles.delayedText,
+																				etaText === "DUE" && styles.dueText,
+																				etaText === "DELAYED" && styles.delayedText
 																			]}
 																		>
-																			{isDue ? "DUE" : `${minutes} min`}
+																			{etaText}
 																		</Text>
 																	</View>
 																</View>
