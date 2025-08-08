@@ -678,7 +678,7 @@ function Trains() {
 				<View style={styles.header}>
 					<Text style={styles.title}>Chicago Train Stations</Text>
 					<Pressable
-						onPress={fetchAllPredictions}
+						onPress={() => fetchAllPredictions()}
 						style={styles.refreshButton}
 						disabled={isRefreshing}
 					>

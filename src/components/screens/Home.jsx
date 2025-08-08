@@ -138,6 +138,9 @@ function Home() {
 
 	const fetchAllPredictions = async (favoritesToUse = favorites) => {
 		setIsRefreshing(true);
+		console.log("[DEBUG] favoritesToUse:", favoritesToUse);
+		console.log("[DEBUG] typeof favoritesToUse:", typeof favoritesToUse);
+		console.log("[DEBUG] Array.isArray(favoritesToUse):", Array.isArray(favoritesToUse));
 		console.log(`[Home] Starting fetch for ${favoritesToUse.length} favorites`);
 		try {
 			const predictionPromises = favoritesToUse.map(favorite => {
@@ -534,7 +537,7 @@ function Home() {
 				<View style={styles.header}>
 					<Text style={styles.title}>My Favorites</Text>
 					<Pressable
-						onPress={fetchAllPredictions}
+						onPress={() => fetchAllPredictions()}
 						style={styles.refreshButton}
 						disabled={isRefreshing}
 					>
