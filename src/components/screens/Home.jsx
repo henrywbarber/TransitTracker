@@ -68,6 +68,7 @@ function Home() {
 					isExpanded: favorite.isExpanded || false
 				}));
 				setFavorites(favoritesWithExpandedState);
+				console.log(favorites)
 				return favoritesWithExpandedState;
 			}
 			return [];
@@ -484,7 +485,7 @@ function Home() {
 			<View style={styles.favoriteInfo}>
 				<View style={styles.favoriteHeader}>
 					<View style={styles.favoriteMainContent}>
-						<Text style={styles.favoriteName}>{item.name}</Text>
+						<Text style={styles.favoriteName}>{item.displayName}</Text>
 						<View style={styles.typeContainer}>
 							<Icon
 								name={item.type === "train" ? "train" : "bus"}

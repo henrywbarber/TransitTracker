@@ -337,10 +337,11 @@ function Trains() {
 
 	const toggleFavorite = async station => {
 		try {
-			//console.log(station)
+			console.log(station)
 			const favoriteItem = {
 				id: `${station.line_color}-${station.map_id}`,
 				name: station.station_name,
+				displayName:`${station.station_name}  |  ${station.line_label} Line Station`,
 				type: "train",
 				color: station.line_color,
 				stopId: station.stops.map(s => s.stop_id), // Include stopId for predictions

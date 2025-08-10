@@ -291,6 +291,7 @@ function Busses() {
 			const favoriteItem = {
 				id: `${route.routeNum}-${stopName}`,
 				name: `${route.routeName} - ${stopName}`,
+				displayName:`${stopName}  |  ${route.routeNum} ${route.routeName}`,
 				type: "bus",
 				color: route.routeClr,
 				stopIds: dirWithStops,
