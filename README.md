@@ -91,8 +91,9 @@ This project is a part-time, ongoing side project aimed at leveraging official C
 ### Notes
 
 - Migrate to Expo Dev New Architecture (SDK 52 or later)
-- This is an ongoing personal side project developed in spare time.
-- The app prioritizes functional completeness and learning over full production polish.
+- Now migrated to Expo SDK 54.0.0
+- This is an ongoing personal side project developed in spare time
+- The app prioritizes functional completeness and learning over full production polish
 
 ---
 
