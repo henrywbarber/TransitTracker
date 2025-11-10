@@ -6,12 +6,12 @@ import {
 	FlatList,
 	Pressable,
 	ActivityIndicator,
-	SafeAreaView,
 	StatusBar,
 	Alert,
 	LayoutAnimation
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { DateTime } from "luxon";
@@ -528,7 +528,7 @@ function Home() {
 	);
 
 	return (
-		<SafeAreaView style={styles.safeArea}>
+		<SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 			<View style={styles.container}>
 				<View style={styles.header}>
@@ -553,7 +553,6 @@ function Home() {
 					style={styles.list}
 					contentContainerStyle={styles.listContent}
 					ListEmptyComponent={renderEmptyState}
-					showsVerticalScrollIndicator={false}
 				/>
 			</View>
 		</SafeAreaView>
