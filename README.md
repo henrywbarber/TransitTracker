@@ -63,8 +63,9 @@ This project is a part-time, ongoing side project aimed at leveraging official C
 
 **Status:** In Progress  
 
-- Improve UI polish, caching strategies, and performance.  
+- Improve UI polish, caching strategies, and performance.
 - Implement train tracking alongside buses.  
+- Costom logging based on servity level.
 - Add push notifications and dark mode.
 
 ### 5. Deployment  
@@ -85,14 +86,16 @@ This project is a part-time, ongoing side project aimed at leveraging official C
 - [CTA4J Repo](https://github.com/lbkulinski/CTA4j)
 - [CTA API Wrapping Youtube](https://www.youtube.com/watch?v=yE6X4wWwyHM)
 - [React Native Vector Icons](https://github.com/oblador/react-native-vector-icons)
+- [React Native Logging Practices](https://medium.com/vectoscalar/react-native-logs-best-practices-3d271a20b541)
 
 ---
 
 ### Notes
 
 - Migrate to Expo Dev New Architecture (SDK 52 or later)
-- This is an ongoing personal side project developed in spare time.
-- The app prioritizes functional completeness and learning over full production polish.
+- Now migrated to Expo SDK 54.0.0
+- This is an ongoing personal side project developed in spare time
+- The app prioritizes functional completeness and learning over full production polish
 
 ---
 

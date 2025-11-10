@@ -7,12 +7,13 @@ import {
 	Pressable,
 	ActivityIndicator,
 	SectionList,
-	SafeAreaView,
 	StatusBar,
 	Alert,
 	LayoutAnimation
 } from "react-native";
+import { log } from "../../utils/logger";
 import axios from "axios";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -88,7 +89,7 @@ function Busses() {
 
 	useEffect(() => {
 		const fetchRoutes = async () => {
-			console.log("[Busses] Fetching all routes");
+			log.debug("[Busses] Fetching all routes");
 			try {
 				const routesResponse = await axios.get(
 					`http://www.ctabustracker.com/bustime/api/v2/getroutes?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&format=json`
@@ -105,13 +106,13 @@ function Busses() {
 					})
 				);
 
-				console.log(`[Busses] Processing ${routesData.length} routes`);
+				log.debug(`[Busses] Processing ${routesData.length} routes`);
 
 				// Process all routes at once
 				const processedRoutes = await processRouteData(routesData);
 				setAllRoutes(processedRoutes);
 			} catch (error) {
-				console.error("Error fetching bus route data:", error);
+				log.error("[Busses] Error fetching bus route data:", error);
 			} finally {
 				setIsLoading(false);
 			}
@@ -138,7 +139,7 @@ function Busses() {
 						setFavorites(busFavs);
 					}
 				} catch (error) {
-					console.error("Error loading favorites:", error);
+					log.error("[Busses] Error loading favorites:", error);
 				}
 			};
 
@@ -148,7 +149,7 @@ function Busses() {
 
 	const fetchStopPredictions = async (stopId, routeNum, direction) => {
 		try {
-			console.log(`[Busses] Fetched predictions for ${stopId}`);
+			log.debug(`[Busses] Fetched predictions for ${stopId}`);
 			const response = await axios.get(
 				`http://www.ctabustracker.com/bustime/api/v2/getpredictions?key=${process.env.EXPO_PUBLIC_CTA_BUS_API_KEY}&rt=${routeNum}&stpid=${stopId}&format=json`
 			);
@@ -193,15 +194,15 @@ function Busses() {
 				})
 			);
 		} catch (error) {
-			console.error(
-				`Error fetching predictions for stopId ${stopId} routeNum ${routeNum} direction ${direction}:`,
+			log.error(
+				`[Busses] Error fetching predictions for stopId ${stopId} routeNum ${routeNum} direction ${direction}:`,
 				error
 			);
 		}
 	};
 
 	const fetchAllPredictions = async () => {
-		console.log("[Busses] Fetching predictions for expanded stops only");
+		log.debug("[Busses] Fetching predictions for expanded stops only");
 		setIsRefreshing(true);
 
 		try {
@@ -224,10 +225,10 @@ function Busses() {
 
 			await Promise.all(promises);
 		} catch (error) {
-			console.error("[Busses] Error during fetchAllPredictions:", error);
+			log.error("[Busses] Error during fetchAllPredictions:", error);
 		} finally {
 			setIsRefreshing(false);
-			console.log("[Busses] Done fetching expanded predictions");
+			log.debug("[Busses] Done fetching expanded predictions");
 		}
 	};
 
@@ -281,7 +282,7 @@ function Busses() {
 
 	const toggleFavorite = async (stopName, stopId, route) => {
 		try {
-			console.log("[Busses] toggling favorite for " + stopName);
+			log.debug("[Busses] toggling favorite for " + stopName);
 
 			const dirWithStops = Object.fromEntries(
 				Object.entries(route.stops[stopName].directions).map(
@@ -343,7 +344,7 @@ function Busses() {
 				setFavorites(tempFavs);
 			}
 		} catch (error) {
-			console.error("Error toggling favorite:", error);
+			log.error("Error toggling favorite:", error);
 		}
 	};
 
@@ -368,7 +369,7 @@ function Busses() {
 					if (isExpanding) {
 						Object.entries(route.stops[stopName].directions).forEach(
 							([direction, data]) => {
-								console.log(data);
+								// log.debug(data);
 								fetchStopPredictions(data.stopId, routeNum, direction);
 							}
 						);
@@ -556,7 +557,7 @@ function Busses() {
 	);
 
 	return (
-		<SafeAreaView style={styles.safeArea}>
+		<SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 			<View style={styles.container}>
 				<View style={styles.header}>

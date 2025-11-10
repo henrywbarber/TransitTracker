@@ -6,12 +6,13 @@ import {
 	FlatList,
 	Pressable,
 	ActivityIndicator,
-	SafeAreaView,
 	StatusBar,
 	Alert,
 	LayoutAnimation
 } from "react-native";
+import { log } from "../../utils/logger";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { DateTime } from "luxon";
@@ -45,9 +46,9 @@ function Home() {
 		if (favorites.length > 0) {
 			fetchAllPredictions(favorites);
 
-			console.log("[Home] Periodic refresh triggered");
+			log.debug("[Home] Periodic refresh triggered");
 			const interval = setInterval(() => {
-				console.log("[Home] Periodic refresh triggered");
+				log.debug("[Home] Periodic refresh triggered");
 				const currentFavorites = favoritesRef.current;
 				if (currentFavorites.length > 0) {
 					fetchAllPredictions(currentFavorites);
@@ -68,12 +69,12 @@ function Home() {
 					isExpanded: favorite.isExpanded || false
 				}));
 				setFavorites(favoritesWithExpandedState);
-				console.log(favorites)
+				log.debug(favorites)
 				return favoritesWithExpandedState;
 			}
 			return [];
 		} catch (error) {
-			console.error("[Home] Error loading favorites:", error);
+			log.error("[Home] Error loading favorites:", error);
 			return [];
 		}
 	};
@@ -100,7 +101,7 @@ function Home() {
 			// Save to AsyncStorage
 			await AsyncStorage.setItem("favorites", JSON.stringify(updatedFavorites));
 		} catch (error) {
-			console.error("Error toggling expanded state:", error);
+			log.error("[Home] Error toggling expanded state:", error);
 		}
 	};
 
@@ -125,11 +126,9 @@ function Home() {
 							// Update state
 							setFavorites(tempFavs);
 
-							console.log(
-								`[Home] Removed favorite: ${item.name} (${item.type})`
-							);
+							log.debug(`[Home] Removed favorite: ${item.name} (${item.type})`);
 						} catch (error) {
-							console.error("Error removing favorite:", error);
+							log.error("[Home] Error removing favorite:", error);
 						}
 					}
 				}
@@ -139,10 +138,13 @@ function Home() {
 
 	const fetchAllPredictions = async (favoritesToUse = favorites) => {
 		setIsRefreshing(true);
-		console.log("[DEBUG] favoritesToUse:", favoritesToUse);
-		console.log("[DEBUG] typeof favoritesToUse:", typeof favoritesToUse);
-		console.log("[DEBUG] Array.isArray(favoritesToUse):", Array.isArray(favoritesToUse));
-		console.log(`[Home] Starting fetch for ${favoritesToUse.length} favorites`);
+		log.debug("[Home] favoritesToUse:", favoritesToUse);
+		log.debug("[Home] typeof favoritesToUse:", typeof favoritesToUse);
+		log.debug(
+			"[Home] Array.isArray(favoritesToUse):",
+			Array.isArray(favoritesToUse)
+		);
+		log.debug(`[Home] Starting fetch for ${favoritesToUse.length} favorites`);
 		try {
 			const predictionPromises = favoritesToUse.map(favorite => {
 				if (favorite.type === "train") {
@@ -160,14 +162,14 @@ function Home() {
 			});
 
 			setPredictions(newPredictions);
-			console.log(
+			log.debug(
 				`[Home] Successfully fetched predictions for ${favoritesToUse.length} favorites`
 			);
 		} catch (error) {
-			console.error("[Home] Error fetching predictions:", error);
+			log.error("[Home] Error fetching predictions:", error);
 		} finally {
 			setIsRefreshing(false);
-			console.log("[Home] Finished fetchAllPredictions");
+			log.debug("[Home] Finished fetchAllPredictions");
 		}
 	};
 
@@ -179,7 +181,7 @@ function Home() {
 				);
 
 				const predictions = response.data.ctatt?.eta || [];
-				console.log(
+				log.debug(
 					`[Home] Fetched ${predictions.length} train predictions for stop ${stopId}`
 				);
 
@@ -214,7 +216,7 @@ function Home() {
 			const results = await Promise.all(predictionPromises);
 			return results;
 		} catch (error) {
-			console.error("[Home] Error fetching train predictions:", error);
+			log.error("[Home] Error fetching train predictions:", error);
 			return [];
 		}
 	};
@@ -228,7 +230,7 @@ function Home() {
 					);
 
 					const predictions = response.data["bustime-response"].prd || [];
-					console.log(
+					log.debug(
 						`[Home] Fetched ${predictions.length} bus predictions for route ${routeNumber} at stop ${stopId}`
 					);
 
@@ -248,7 +250,7 @@ function Home() {
 
 			return directionPredictions;
 		} catch (error) {
-			console.error("[Home] Error fetching bus predictions:", error);
+			log.error("[Home] Error fetching bus predictions:", error);
 			return {};
 		}
 	};
@@ -532,7 +534,7 @@ function Home() {
 	);
 
 	return (
-		<SafeAreaView style={styles.safeArea}>
+		<SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 			<View style={styles.container}>
 				<View style={styles.header}>
@@ -557,7 +559,6 @@ function Home() {
 					style={styles.list}
 					contentContainerStyle={styles.listContent}
 					ListEmptyComponent={renderEmptyState}
-					showsVerticalScrollIndicator={false}
 				/>
 			</View>
 		</SafeAreaView>

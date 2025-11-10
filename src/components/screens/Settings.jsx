@@ -1,29 +1,21 @@
 import React, { useState } from "react";
-import {
-	View,
-	Text,
-	StyleSheet,
-	SafeAreaView,
-	StatusBar,
-	Switch,
-	ScrollView
-} from "react-native";
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { View, Text, StyleSheet, StatusBar, Switch } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
 
 function Settings() {
+	// Future feature: Notifications toggle
 	/*const [notifications, setNotifications] = useState(false);
 
 	const toggleNotifications = () => {
 		setNotifications(prev => !prev);
 	};*/
 
-	const LegendItem = ({ icon, label, description, textColor = '#333' }) => (
+	const LegendItem = ({ icon, label, description, textColor = "#333" }) => (
 		<View style={styles.legendItem}>
-			<View style={styles.iconContainer}>
-				{icon}
-			</View>
+			<View style={styles.iconContainer}>{icon}</View>
 			<View style={styles.textContainer}>
 				<Text style={[styles.legendLabel, { color: textColor }]}>{label}</Text>
 				<Text style={styles.legendDescription}>{description}</Text>
@@ -32,14 +24,14 @@ function Settings() {
 	);
 
 	return (
-		<SafeAreaView style={styles.safeArea}>
+		<SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-			<ScrollView style={styles.container}>
+			<View style={styles.container}>
 				<View style={styles.header}>
 					<Text style={styles.title}>Settings</Text>
 				</View>
 
-				{/* Notifications Section 
+				{/* Future feature: Notifications Section 
 				<View style={styles.section}>
 					<View style={styles.noti}>
 						<Text style={styles.sectionTitle}>Notifications</Text>
@@ -52,6 +44,7 @@ function Settings() {
 					</View>
 				</View>
 					*/}
+
 				{/* Legend Section */}
 				<View style={styles.section}>
 					<Text style={styles.sectionTitle}>Legend</Text>
@@ -87,7 +80,6 @@ function Settings() {
 							description="Handicap accessible"
 						/>
 
-
 						<LegendItem
 							icon={<Text style={styles.etaText}>5 min</Text>}
 							label="Live ETA"
@@ -98,7 +90,6 @@ function Settings() {
 							label="Scheduled ETA"
 							description="Arrival time based on scheduled data"
 						/>
-
 
 						<LegendItem
 							icon={<Text style={styles.dueText}>DUE</Text>}
@@ -112,7 +103,7 @@ function Settings() {
 						/>
 					</View>
 				</View>
-			</ScrollView>
+			</View>
 		</SafeAreaView>
 	);
 }
