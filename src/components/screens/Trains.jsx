@@ -11,6 +11,7 @@ import {
 	Alert,
 	LayoutAnimation
 } from "react-native";
+import { log } from "../../utils/logger";
 import axios from "axios";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -118,7 +119,7 @@ function Trains() {
 
 	useEffect(() => {
 		const fetchStations = async () => {
-			console.log("[Trains] Starting fetch for stations");
+			log.debug("[Trains] Starting fetch for stations");
 			try {
 				const response = await axios.get(
 					"https://data.cityofchicago.org/resource/8pix-ypme.json"
@@ -204,9 +205,9 @@ function Trains() {
 				});
 
 				setLines(updatedLines);
-				console.log("[Trains] Successfully fetched stations");
+				log.debug("[Trains] Successfully fetched stations");
 			} catch (error) {
-				console.error("[Trains] Error fetching train station data:", error);
+				log.error("[Trains] Error fetching train station data:", error);
 			} finally {
 				setIsLoadingStations(false);
 			}
@@ -233,7 +234,7 @@ function Trains() {
 						setFavorites(trainFavs);
 					}
 				} catch (error) {
-					console.error("Error loading favorites:", error);
+					log.error("[Trains] Error loading favorites:", error);
 				}
 			};
 
@@ -243,23 +244,23 @@ function Trains() {
 
 	const fetchAllPredictions = async () => {
 		setIsRefreshing(true);
-		console.log("[Trains] Starting fetchAllPredictions");
+		log.debug("[Trains] Starting fetchAllPredictions");
 		try {
 			// Only fetch predictions for expanded stations
 			const expandedStations = lines.flatMap(line =>
 				line.stations.filter(station => station.dropdownOn)
 			);
-			console.log("[Trains] Expanded stations count:", expandedStations.length);
+			log.debug("[Trains] Expanded stations count:", expandedStations.length);
 
 			if (expandedStations.length === 0) {
 				setIsRefreshing(false);
-				console.log("[Trains] No expanded stations, skipping fetch");
+				log.debug("[Trains] No expanded stations, skipping fetch");
 				return;
 			}
 
 			const predictionPromises = expandedStations.flatMap(station =>
 				station.stops.map(async stop => {
-					console.log("[Trains] Fetching predictions for stop", stop.stop_id);
+					log.debug("[Trains] Fetching predictions for stop", stop.stop_id);
 					const response = await axios.get(
 						`https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx?key=${process.env.EXPO_PUBLIC_CTA_TRAIN_API_KEY}&stpid=${stop.stop_id}&outputType=JSON`
 					);
@@ -271,7 +272,7 @@ function Trains() {
 			);
 
 			const results = await Promise.all(predictionPromises);
-			console.log("[Trains] All predictions fetched successfully");
+			log.debug("[Trains] All predictions fetched successfully");
 
 			const newPredictions = {};
 			results.forEach(result => {
@@ -280,16 +281,16 @@ function Trains() {
 
 			setStationPredictions(newPredictions);
 		} catch (error) {
-			console.error("[Trains] Error fetching predictions:", error);
+			log.error("[Trains] Error fetching predictions:", error);
 		} finally {
 			setIsRefreshing(false);
-			console.log("[Trains] Finished fetchAllPredictions");
+			log.debug("[Trains] Finished fetchAllPredictions");
 		}
 	};
 
 	// Add useEffect to fetch predictions when dropdown state changes
 	useEffect(() => {
-		console.log(
+		log.debug(
 			"[Trains] Dropdown state changed, checking for expanded stations"
 		);
 		const hasExpandedStations = lines.some(line =>
@@ -297,32 +298,32 @@ function Trains() {
 		);
 
 		if (hasExpandedStations) {
-			console.log("[Trains] Found expanded stations, triggering fetch");
+			log.debug("[Trains] Found expanded stations, triggering fetch");
 			fetchAllPredictions();
 		} else {
-			console.log("[Trains] No expanded stations found");
+			log.debug("[Trains] No expanded stations found");
 		}
 	}, [lines]);
 
 	// Separate useEffect for periodic refresh - only run once when component mounts
 	useEffect(() => {
-		console.log("[Trains] Setting up periodic refresh interval");
+		log.debug("[Trains] Setting up periodic refresh interval");
 		const interval = setInterval(() => {
-			console.log("[Trains] Periodic refresh triggered");
+			log.debug("[Trains] Periodic refresh triggered");
 			const hasExpandedStations = lines.some(line =>
 				line.stations.some(station => station.dropdownOn)
 			);
 
 			if (hasExpandedStations) {
-				console.log("[Trains] Found expanded stations during periodic refresh");
+				log.debug("[Trains] Found expanded stations during periodic refresh");
 				fetchAllPredictions();
 			} else {
-				console.log("[Trains] No expanded stations during periodic refresh");
+				log.debug("[Trains] No expanded stations during periodic refresh");
 			}
 		}, 60000);
 
 		return () => {
-			console.log("[Trains] Cleaning up periodic refresh interval");
+			log.debug("[Trains] Cleaning up periodic refresh interval");
 			clearInterval(interval);
 		};
 	}, []); // Empty dependency array means this only runs once when component mounts
@@ -337,7 +338,7 @@ function Trains() {
 
 	const toggleFavorite = async station => {
 		try {
-			//console.log(station)
+			//log.debug(station)
 			const favoriteItem = {
 				id: `${station.line_color}-${station.map_id}`,
 				name: station.station_name,
@@ -391,13 +392,13 @@ function Trains() {
 				setFavorites(tempFavs);
 			}
 		} catch (error) {
-			console.error("Error toggling favorite:", error);
+			log.error("[Trains] Error toggling favorite:", error);
 		}
 	};
 
 	// Modify toggleStopDropdown to use fetchAllPredictions
 	const toggleStopDropdown = item => {
-		console.log("[Trains] Toggling stop dropdown for:", item.station_name);
+		log.debug("[Trains] Toggling stop dropdown for:", item.station_name);
 		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 		setLines(prevLines =>
 			prevLines.map(line => {
