@@ -10,7 +10,7 @@ import {
 	Alert,
 	LayoutAnimation
 } from "react-native";
-import { log } from "../../utils/logger";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +18,8 @@ import axios from "axios";
 import { DateTime } from "luxon";
 import { useFocusEffect } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+
+import { log } from "../../utils/logger";
 
 function Home() {
 	const [favorites, setFavorites] = useState([]);

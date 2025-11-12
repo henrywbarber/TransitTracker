@@ -11,7 +11,7 @@ import {
 	Alert,
 	LayoutAnimation
 } from "react-native";
-import { log } from "../../utils/logger";
+
 import axios from "axios";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +19,8 @@ import { FontAwesome } from "@expo/vector-icons";
 import { DateTime } from "luxon";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+
+import { log } from "../../utils/logger";
 
 function Trains() {
 	const [search, setSearch] = useState("");

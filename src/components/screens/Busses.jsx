@@ -11,12 +11,14 @@ import {
 	Alert,
 	LayoutAnimation
 } from "react-native";
-import { log } from "../../utils/logger";
+
 import axios from "axios";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+
+import { log } from "../../utils/logger";
 
 const SectionHeader = React.memo(({ section, onToggle }) => (
 	<Pressable
